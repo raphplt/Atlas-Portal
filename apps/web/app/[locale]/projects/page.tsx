@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ProjectSummary } from '@/lib/portal/types';
+import { Plus, ExternalLink, Trash2, FolderKanban, CheckCircle2 } from 'lucide-react';
 
 export default function ProjectsPage() {
   const { session, ready, request } = useAuth();
@@ -76,34 +77,40 @@ export default function ProjectsPage() {
 
   function renderProjectCard(project: ProjectSummary) {
     return (
-      <Card key={project.id} className="transition-all hover:shadow-[var(--shadow)]">
+      <Card key={project.id} className="transition-all hover:shadow-(--shadow) hover:border-primary/20 hover:-translate-y-0.5">
         <CardHeader>
           <div className="flex items-center justify-between gap-2">
-            <CardTitle>{project.name}</CardTitle>
+            <div className="flex items-center gap-2">
+              <div className="icon-wrapper">
+                <FolderKanban className="h-5 w-5" />
+              </div>
+              <CardTitle>{project.name}</CardTitle>
+            </div>
             <Badge>{t(`status.project.${project.status}`)}</Badge>
           </div>
           <CardDescription>{project.description ?? t('projects.noDescription')}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
-            <div className="mb-2 flex justify-between text-xs text-[var(--color-muted)]">
+            <div className="mb-2 flex justify-between text-xs text-muted">
               <span>{t('project.progress')}</span>
-              <span>{project.progress}%</span>
+              <span className="font-semibold">{project.progress}%</span>
             </div>
-            <div className="h-2 rounded-full bg-[var(--color-background-alt)]">
+            <div className="h-2 rounded-full bg-background-alt overflow-hidden">
               <div
-                className="h-full rounded-full bg-[var(--color-primary)]"
+                className="h-full rounded-full bg-primary transition-all duration-500"
                 style={{ width: `${Math.max(0, Math.min(100, project.progress))}%` }}
               />
             </div>
           </div>
 
-          <p className="text-sm text-[var(--color-muted)]">
+          <p className="text-sm text-muted">
             {t('project.nextAction')}: {project.nextAction ?? t('project.nextActionFallback')}
           </p>
 
           <div className="flex gap-2">
-            <Link className="btn-secondary w-full" href={`/${locale}/projects/${project.id}/overview`}>
+            <Link className="btn-secondary w-full flex items-center justify-center gap-2" href={`/${locale}/projects/${project.id}/overview`}>
+              <ExternalLink className="h-4 w-4" />
               {t('project.open')}
             </Link>
             {isAdmin ? (
@@ -113,6 +120,7 @@ export default function ProjectsPage() {
                 onClick={() => void handleDeleteProject(project.id)}
                 disabled={submitting}
               >
+                <Trash2 className="h-4 w-4" />
                 {t('common.delete')}
               </Button>
             ) : null}
@@ -126,11 +134,15 @@ export default function ProjectsPage() {
     <section className="space-y-8">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1>{t('projects.title')}</h1>
+          <h1 className="flex items-center gap-3">
+            <FolderKanban className="h-8 w-8 text-primary" />
+            {t('projects.title')}
+          </h1>
           <p>{t('projects.subtitle')}</p>
         </div>
         {isAdmin ? (
           <Link className="btn-primary" href={`/${locale}/projects/new`}>
+            <Plus className="h-5 w-5" />
             {t('projects.cta.new')}
           </Link>
         ) : null}
@@ -143,14 +155,20 @@ export default function ProjectsPage() {
 
       {grouped.active.length > 0 ? (
         <div className="space-y-3">
-          <h2 className="text-xl">{t('projects.section.active')}</h2>
+          <h2 className="text-xl flex items-center gap-2">
+            <div className="h-1 w-1 rounded-full bg-primary animate-pulse"></div>
+            {t('projects.section.active')}
+          </h2>
           <div className="grid gap-4 lg:grid-cols-2">{grouped.active.map(renderProjectCard)}</div>
         </div>
       ) : null}
 
       {grouped.done.length > 0 ? (
         <div className="space-y-3">
-          <h2 className="text-xl">{t('projects.section.done')}</h2>
+          <h2 className="text-xl flex items-center gap-2">
+            <CheckCircle2 className="h-5 w-5 text-green-600" />
+            {t('projects.section.done')}
+          </h2>
           <div className="grid gap-4 lg:grid-cols-2">{grouped.done.map(renderProjectCard)}</div>
         </div>
       ) : null}

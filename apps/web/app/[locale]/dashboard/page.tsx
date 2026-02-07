@@ -8,6 +8,16 @@ import { useTranslations } from '@/components/providers/translation-provider';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ProjectSummary, TicketItem } from '@/lib/portal/types';
+import {
+  FolderKanban,
+  Clock,
+  Ticket,
+  CheckCircle2,
+  Plus,
+  UserPlus,
+  ArrowRight,
+  LayoutDashboard
+} from 'lucide-react';
 
 export default function DashboardPage() {
   const { session, ready, request } = useAuth();
@@ -70,16 +80,21 @@ export default function DashboardPage() {
     <section className="space-y-8">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1>{isAdmin ? t('dashboard.admin.title') : t('dashboard.client.title')}</h1>
+          <h1 className="flex items-center gap-3">
+            <LayoutDashboard className="h-8 w-8 text-primary" />
+            {isAdmin ? t('dashboard.admin.title') : t('dashboard.client.title')}
+          </h1>
           <p>{isAdmin ? t('dashboard.admin.subtitle') : t('dashboard.client.subtitle')}</p>
         </div>
 
         {isAdmin ? (
           <div className="flex gap-2">
             <Link className="btn-primary" href={`/${locale}/projects/new`}>
+              <Plus className="h-5 w-5" />
               {t('dashboard.cta.newProject')}
             </Link>
             <Link className="btn-secondary" href={`/${locale}/clients/invite`}>
+              <UserPlus className="h-5 w-5" />
               {t('dashboard.cta.inviteClient')}
             </Link>
           </div>
@@ -90,28 +105,48 @@ export default function DashboardPage() {
       {loading ? <p>{t('project.loading')}</p> : null}
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <Card>
+        <Card className="hover-lift">
           <CardHeader>
-            <CardDescription>{t('dashboard.metric.projects')}</CardDescription>
-            <CardTitle>{metrics.totalProjects}</CardTitle>
+            <div className="flex items-center justify-between">
+              <CardDescription>{t('dashboard.metric.projects')}</CardDescription>
+              <div className="icon-wrapper">
+                <FolderKanban className="h-5 w-5" />
+              </div>
+            </div>
+            <CardTitle className="text-3xl">{metrics.totalProjects}</CardTitle>
           </CardHeader>
         </Card>
-        <Card>
+        <Card className="hover-lift">
           <CardHeader>
-            <CardDescription>{t('dashboard.metric.waiting')}</CardDescription>
-            <CardTitle>{metrics.waitingProjects}</CardTitle>
+            <div className="flex items-center justify-between">
+              <CardDescription>{t('dashboard.metric.waiting')}</CardDescription>
+              <div className="icon-wrapper">
+                <Clock className="h-5 w-5" />
+              </div>
+            </div>
+            <CardTitle className="text-3xl">{metrics.waitingProjects}</CardTitle>
           </CardHeader>
         </Card>
-        <Card>
+        <Card className="hover-lift">
           <CardHeader>
-            <CardDescription>{t('dashboard.metric.tickets')}</CardDescription>
-            <CardTitle>{metrics.openTickets}</CardTitle>
+            <div className="flex items-center justify-between">
+              <CardDescription>{t('dashboard.metric.tickets')}</CardDescription>
+              <div className="icon-wrapper">
+                <Ticket className="h-5 w-5" />
+              </div>
+            </div>
+            <CardTitle className="text-3xl">{metrics.openTickets}</CardTitle>
           </CardHeader>
         </Card>
-        <Card>
+        <Card className="hover-lift">
           <CardHeader>
-            <CardDescription>{t('dashboard.metric.completed')}</CardDescription>
-            <CardTitle>{metrics.doneProjects}</CardTitle>
+            <div className="flex items-center justify-between">
+              <CardDescription>{t('dashboard.metric.completed')}</CardDescription>
+              <div className="icon-wrapper">
+                <CheckCircle2 className="h-5 w-5" />
+              </div>
+            </div>
+            <CardTitle className="text-3xl">{metrics.doneProjects}</CardTitle>
           </CardHeader>
         </Card>
       </div>
@@ -125,14 +160,15 @@ export default function DashboardPage() {
           <CardContent className="space-y-3">
             {projects.length === 0 ? <p>{t('dashboard.empty')}</p> : null}
             {projects.slice(0, 8).map((project) => (
-              <div key={project.id} className="rounded-[var(--radius)] border border-[var(--color-border)] p-3">
+              <div key={project.id} className="rounded-(--radius) border border-border p-3 hover:bg-background-alt transition-colors">
                 <div className="mb-1 flex items-center justify-between gap-2">
-                  <p className="font-medium text-[var(--color-foreground)]">{project.name}</p>
+                  <p className="font-medium text-(--color-foreground)">{project.name}</p>
                   <Badge>{t(`status.project.${project.status}`)}</Badge>
                 </div>
-                <p className="text-xs text-[var(--color-muted)]">{project.nextAction ?? t('project.nextActionFallback')}</p>
-                <Link className="mt-2 inline-flex text-sm text-[var(--color-primary)] hover:underline" href={`/${locale}/projects/${project.id}/overview`}>
+                <p className="text-xs text-muted">{project.nextAction ?? t('project.nextActionFallback')}</p>
+                <Link className="mt-2 inline-flex items-center gap-1 text-sm text-primary hover:underline" href={`/${locale}/projects/${project.id}/overview`}>
                   {t('project.open')}
+                  <ArrowRight className="h-3 w-3" />
                 </Link>
               </div>
             ))}
@@ -147,14 +183,15 @@ export default function DashboardPage() {
           <CardContent className="space-y-3">
             {tickets.length === 0 ? <p>{t('tickets.empty')}</p> : null}
             {tickets.slice(0, 8).map((ticket) => (
-              <div key={ticket.id} className="rounded-[var(--radius)] border border-[var(--color-border)] p-3">
+              <div key={ticket.id} className="rounded-(--radius) border border-border p-3 hover:bg-background-alt transition-colors">
                 <div className="mb-1 flex items-center justify-between gap-2">
-                  <p className="font-medium text-[var(--color-foreground)]">{ticket.title}</p>
+                  <p className="font-medium text-(--color-foreground)">{ticket.title}</p>
                   <Badge>{t(`status.ticket.${ticket.status}`)}</Badge>
                 </div>
-                <p className="text-xs text-[var(--color-muted)]">{t(`status.ticketType.${ticket.type}`)}</p>
-                <Link className="mt-2 inline-flex text-sm text-[var(--color-primary)] hover:underline" href={`/${locale}/projects/${ticket.projectId}/tickets`}>
+                <p className="text-xs text-muted">{t(`status.ticketType.${ticket.type}`)}</p>
+                <Link className="mt-2 inline-flex items-center gap-1 text-sm text-primary hover:underline" href={`/${locale}/projects/${ticket.projectId}/tickets`}>
                   {t('dashboard.openTicketModule')}
+                  <ArrowRight className="h-3 w-3" />
                 </Link>
               </div>
             ))}

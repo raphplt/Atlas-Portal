@@ -110,6 +110,22 @@
   .text-balance {
     text-wrap: balance;
   }
+
+  .glass-effect {
+    @apply bg-[var(--color-card)]/80 backdrop-blur-md border border-[var(--color-border)];
+  }
+
+  .gradient-accent {
+    background: linear-gradient(135deg, var(--color-accent) 0%, var(--color-accent-alt) 100%);
+  }
+
+  .hover-lift {
+    @apply transition-all duration-300 hover:-translate-y-1 hover:shadow-lg;
+  }
+
+  .icon-wrapper {
+    @apply flex items-center justify-center w-10 h-10 rounded-[var(--radius)] bg-[var(--color-background-alt)] text-[var(--color-primary)];
+  }
 }
 
 /* Components */
@@ -123,7 +139,11 @@
   }
 
   .card-base {
-    @apply bg-[var(--color-card)] border border-[var(--color-border)] rounded-[var(--radius-lg)] p-6 md:p-8 backdrop-blur-sm;
+    @apply bg-[var(--color-card)] border border-[var(--color-border)] rounded-[var(--radius-lg)] p-6 md:p-8 backdrop-blur-sm transition-all duration-300;
+  }
+
+  .card-hover {
+    @apply bg-[var(--color-card)] border border-[var(--color-border)] rounded-[var(--radius-lg)] p-6 md:p-8 backdrop-blur-sm transition-all duration-300 hover:shadow-(--shadow) hover:border-primary/20 hover:-translate-y-0.5;
   }
 
   /* Form Elements */

@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { LogIn, Mail, Lock } from 'lucide-react';
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -41,22 +42,32 @@ export default function LoginPage() {
   return (
     <div className="mx-auto max-w-md">
       <Card>
-        <CardHeader>
+        <CardHeader className="text-center">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
+            <LogIn className="h-8 w-8 text-primary" />
+          </div>
           <CardTitle>{t('auth.login.title')}</CardTitle>
           <CardDescription>{t('auth.login.description')}</CardDescription>
         </CardHeader>
         <CardContent>
           <form className="space-y-4" onSubmit={(event) => void handleSubmit(event)}>
             <div>
-              <Label htmlFor="email">{t('auth.email')}</Label>
+              <Label htmlFor="email" className="flex items-center gap-2">
+                <Mail className="h-4 w-4" />
+                {t('auth.email')}
+              </Label>
               <Input id="email" name="email" type="email" autoComplete="email" required />
             </div>
             <div>
-              <Label htmlFor="password">{t('auth.password')}</Label>
+              <Label htmlFor="password" className="flex items-center gap-2">
+                <Lock className="h-4 w-4" />
+                {t('auth.password')}
+              </Label>
               <Input id="password" name="password" type="password" autoComplete="current-password" required />
             </div>
             {error ? <p className="text-sm text-red-600">{error}</p> : null}
             <Button className="w-full" type="submit" disabled={pending}>
+              <LogIn className="h-4 w-4" />
               {t('auth.submit')}
             </Button>
           </form>
