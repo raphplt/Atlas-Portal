@@ -3,7 +3,7 @@ import { IsInt, IsOptional, IsString, IsUUID, Max, Min } from 'class-validator';
 
 export class PaginationQueryDto {
   @IsOptional()
-  @Transform(({ value }) => Number.parseInt(value, 10))
+  @Transform(({ value }: { value: string }) => Number.parseInt(value, 10))
   @IsInt()
   @Min(1)
   @Max(100)

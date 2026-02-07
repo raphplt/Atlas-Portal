@@ -27,7 +27,10 @@ export class AuditEventEntity {
   @Column({ type: 'uuid', name: 'project_id', nullable: true })
   projectId?: string | null;
 
-  @ManyToOne(() => ProjectEntity, (project) => project.auditEvents, { nullable: true, onDelete: 'CASCADE' })
+  @ManyToOne(() => ProjectEntity, (project) => project.auditEvents, {
+    nullable: true,
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'project_id' })
   project?: ProjectEntity | null;
 

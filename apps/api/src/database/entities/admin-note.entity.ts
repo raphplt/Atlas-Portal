@@ -28,7 +28,9 @@ export class AdminNoteEntity {
   @Column({ type: 'uuid', name: 'project_id' })
   projectId!: string;
 
-  @ManyToOne(() => ProjectEntity, (project) => project.adminNotes, { onDelete: 'CASCADE' })
+  @ManyToOne(() => ProjectEntity, (project) => project.adminNotes, {
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'project_id' })
   project!: ProjectEntity;
 

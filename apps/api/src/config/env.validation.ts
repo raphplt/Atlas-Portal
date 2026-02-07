@@ -1,7 +1,9 @@
 import { z } from 'zod';
 
 const envSchema = z.object({
-  NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+  NODE_ENV: z
+    .enum(['development', 'test', 'production'])
+    .default('development'),
   PORT: z.coerce.number().int().positive().default(3001),
   DATABASE_HOST: z.string().min(1),
   DATABASE_PORT: z.coerce.number().int().positive().default(5432),
@@ -26,7 +28,9 @@ const envSchema = z.object({
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
   STRIPE_SUCCESS_URL: z.string().url().optional(),
   STRIPE_CANCEL_URL: z.string().url().optional(),
-  POSTMARK_SERVER_TOKEN: z.string().optional(),
+  BREVO_API_KEY: z.string().optional(),
+  BREVO_API_URL: z.string().url().optional(),
+  BREVO_SANDBOX: z.enum(['true', 'false']).default('false'),
   EMAIL_SENDER: z.string().email().optional(),
 });
 

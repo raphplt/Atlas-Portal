@@ -28,7 +28,9 @@ export class MessageEntity {
   @Column({ type: 'uuid', name: 'project_id' })
   projectId!: string;
 
-  @ManyToOne(() => ProjectEntity, (project) => project.messages, { onDelete: 'CASCADE' })
+  @ManyToOne(() => ProjectEntity, (project) => project.messages, {
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'project_id' })
   project!: ProjectEntity;
 
@@ -42,7 +44,10 @@ export class MessageEntity {
   @Column({ type: 'uuid', name: 'ticket_id', nullable: true })
   ticketId?: string | null;
 
-  @ManyToOne(() => TicketEntity, (ticket) => ticket.messages, { nullable: true, onDelete: 'CASCADE' })
+  @ManyToOne(() => TicketEntity, (ticket) => ticket.messages, {
+    nullable: true,
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'ticket_id' })
   ticket?: TicketEntity | null;
 

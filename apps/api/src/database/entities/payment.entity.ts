@@ -30,7 +30,9 @@ export class PaymentEntity {
   @Column({ type: 'uuid', name: 'project_id' })
   projectId!: string;
 
-  @ManyToOne(() => ProjectEntity, (project) => project.payments, { onDelete: 'CASCADE' })
+  @ManyToOne(() => ProjectEntity, (project) => project.payments, {
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'project_id' })
   project!: ProjectEntity;
 
@@ -63,10 +65,20 @@ export class PaymentEntity {
   @Column({ type: 'enum', enum: PaymentStatus, default: PaymentStatus.PENDING })
   status!: PaymentStatus;
 
-  @Column({ type: 'varchar', length: 255, name: 'stripe_checkout_session_id', nullable: true })
+  @Column({
+    type: 'varchar',
+    length: 255,
+    name: 'stripe_checkout_session_id',
+    nullable: true,
+  })
   stripeCheckoutSessionId?: string | null;
 
-  @Column({ type: 'varchar', length: 255, name: 'stripe_payment_intent_id', nullable: true })
+  @Column({
+    type: 'varchar',
+    length: 255,
+    name: 'stripe_payment_intent_id',
+    nullable: true,
+  })
   stripePaymentIntentId?: string | null;
 
   @Column({ type: 'timestamptz', name: 'due_at', nullable: true })

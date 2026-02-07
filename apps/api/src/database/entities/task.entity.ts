@@ -30,7 +30,9 @@ export class TaskEntity {
   @Column({ type: 'uuid', name: 'project_id' })
   projectId!: string;
 
-  @ManyToOne(() => ProjectEntity, (project) => project.tasks, { onDelete: 'CASCADE' })
+  @ManyToOne(() => ProjectEntity, (project) => project.tasks, {
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'project_id' })
   project!: ProjectEntity;
 
@@ -46,7 +48,12 @@ export class TaskEntity {
   @Column({ type: 'enum', enum: TaskStatus, default: TaskStatus.BACKLOG })
   status!: TaskStatus;
 
-  @Column({ type: 'varchar', length: 255, name: 'blocked_reason', nullable: true })
+  @Column({
+    type: 'varchar',
+    length: 255,
+    name: 'blocked_reason',
+    nullable: true,
+  })
   blockedReason?: string | null;
 
   @Column({ type: 'int', default: 0 })

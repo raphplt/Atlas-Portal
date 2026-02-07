@@ -29,7 +29,9 @@ export class FileAssetEntity {
   @Column({ type: 'uuid', name: 'project_id' })
   projectId!: string;
 
-  @ManyToOne(() => ProjectEntity, (project) => project.files, { onDelete: 'CASCADE' })
+  @ManyToOne(() => ProjectEntity, (project) => project.files, {
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'project_id' })
   project!: ProjectEntity;
 
@@ -58,7 +60,12 @@ export class FileAssetEntity {
   @Column({ type: 'varchar', length: 128, nullable: true })
   checksum?: string | null;
 
-  @Column({ type: 'varchar', length: 32, name: 'version_label', nullable: true })
+  @Column({
+    type: 'varchar',
+    length: 32,
+    name: 'version_label',
+    nullable: true,
+  })
   versionLabel?: string | null;
 
   @Column({ type: 'uuid', name: 'ticket_id', nullable: true })

@@ -30,14 +30,18 @@ export class ProjectEntity {
   @Column({ type: 'uuid', name: 'workspace_id' })
   workspaceId!: string;
 
-  @ManyToOne(() => WorkspaceEntity, (workspace) => workspace.projects, { onDelete: 'CASCADE' })
+  @ManyToOne(() => WorkspaceEntity, (workspace) => workspace.projects, {
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'workspace_id' })
   workspace!: WorkspaceEntity;
 
   @Column({ type: 'uuid', name: 'client_id' })
   clientId!: string;
 
-  @ManyToOne(() => UserEntity, (user) => user.projects, { onDelete: 'RESTRICT' })
+  @ManyToOne(() => UserEntity, (user) => user.projects, {
+    onDelete: 'RESTRICT',
+  })
   @JoinColumn({ name: 'client_id' })
   client!: UserEntity;
 
@@ -47,7 +51,11 @@ export class ProjectEntity {
   @Column({ type: 'text', nullable: true })
   description?: string | null;
 
-  @Column({ type: 'enum', enum: ProjectStatus, default: ProjectStatus.IN_PROGRESS })
+  @Column({
+    type: 'enum',
+    enum: ProjectStatus,
+    default: ProjectStatus.IN_PROGRESS,
+  })
   status!: ProjectStatus;
 
   @Column({ type: 'int', default: 0 })
@@ -59,7 +67,11 @@ export class ProjectEntity {
   @Column({ type: 'uuid', name: 'last_update_author_id', nullable: true })
   lastUpdateAuthorId?: string | null;
 
-  @Column({ type: 'timestamptz', name: 'estimated_delivery_at', nullable: true })
+  @Column({
+    type: 'timestamptz',
+    name: 'estimated_delivery_at',
+    nullable: true,
+  })
   estimatedDeliveryAt?: Date | null;
 
   @OneToMany(() => TaskEntity, (task) => task.project)
@@ -80,7 +92,10 @@ export class ProjectEntity {
   @OneToMany(() => AuditEventEntity, (event) => event.project)
   auditEvents!: AuditEventEntity[];
 
-  @OneToMany(() => MilestoneValidationEntity, (validation) => validation.project)
+  @OneToMany(
+    () => MilestoneValidationEntity,
+    (validation) => validation.project,
+  )
   milestoneValidations!: MilestoneValidationEntity[];
 
   @OneToMany(() => AdminNoteEntity, (note) => note.project)

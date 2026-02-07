@@ -3,7 +3,7 @@ import { DataSource, DataSourceOptions } from 'typeorm';
 import { ENTITIES } from './entities';
 import { validateEnv } from '../config/env.validation';
 
-ConfigModule.forRoot({
+void ConfigModule.forRoot({
   isGlobal: true,
   validate: validateEnv,
 });

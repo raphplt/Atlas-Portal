@@ -1,164 +1,85 @@
 # Atlas Portal
 
-A modern monorepo for the Atlas Portal application built with Turborepo.
+Atlas Portal is a premium multi-tenant client portal for freelance projects.
 
-## What's inside?
+## Monorepo structure
 
-This Turborepo includes the following packages/apps:
+- `apps/web`: Next.js 16 frontend (FR/EN, shadcn-style UI, Tailwind v4)
+- `apps/api`: NestJS 11 API (TypeORM, Postgres, JWT, RBAC, Stripe, R2, Brevo email)
+- `packages/shared`: shared enums/contracts
+- `infra/`: deployment files (Docker/Nginx)
 
-### Apps and Packages
+## Local setup
 
-- `api`: a [NestJS](https://nestjs.com/) API with TypeORM and PostgreSQL
-- `web`: a [Next.js](https://nextjs.org/) app with Tailwind CSS v4
-- `@repo/ui`: a React component library shared across applications
-- `@repo/eslint-config`: `eslint` configurations (includes `eslint-config-next` and `eslint-config-prettier`)
-- `@repo/typescript-config`: `tsconfig.json`s used throughout the monorepo
-
-Each package/app is 100% [TypeScript](https://www.typescriptlang.org/).
-
-### Utilities
-
-This Turborepo has some additional tools already setup for you:
-
-- [TypeScript](https://www.typescriptlang.org/) for static type checking
-- [ESLint](https://eslint.org/) for code linting
-- [Prettier](https://prettier.io) for code formatting
-
-## Getting Started
-
-### Prerequisites
-
-- Node.js 18+
-- pnpm 9.0.0 (specified in `package.json`)
-- Docker (for PostgreSQL database)
-
-### Setup
-
-1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd Atlas-Portal
-   ```
-
-2. **Install dependencies**
-   ```bash
-   pnpm install
-   ```
-
-3. **Setup environment variables**
-   ```bash
-   cp .env.example .env
-   cp apps/api/.env.example apps/api/.env
-   ```
-
-   Edit the `.env` files with your configuration if needed.
-
-4. **Start the PostgreSQL database**
-   ```bash
-   docker compose up -d
-   ```
-
-   This will start a PostgreSQL database on port 5432.
-
-5. **Start the development servers**
-   ```bash
-   pnpm dev
-   ```
-
-   This will start:
-   - Web app on http://localhost:3000
-   - API on http://localhost:3001
-
-### Build
-
-To build all apps and packages, run the following command:
+1. Install dependencies:
 
 ```bash
+pnpm install
+```
+
+2. Copy environment templates:
+
+```bash
+cp .env.example .env
+cp apps/api/.env.example apps/api/.env
+cp apps/web/.env.example apps/web/.env.local
+```
+
+3. Start Postgres in Docker:
+
+```bash
+docker compose up -d --build
+```
+
+4. Start API + frontend with Turbo:
+
+```bash
+pnpm dev
+```
+
+- Web: `http://localhost:3000`
+- API: `http://localhost:3001`
+- Health: `http://localhost:3001/health`
+
+## Database migrations
+
+```bash
+pnpm --filter api migration:run
+pnpm --filter api migration:revert
+```
+
+## Quality checks
+
+```bash
+pnpm --filter api lint
+pnpm --filter api test
+pnpm --filter api test:e2e
+pnpm --filter web lint
+pnpm --filter web check-types
 pnpm build
 ```
 
-You can build a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
+## Production deployment
 
-```
-# With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended)
-turbo build --filter=docs
+### API (VPS)
 
-# Without [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation), use your package manager
-npx turbo build --filter=docs
-yarn exec turbo build --filter=docs
-pnpm exec turbo build --filter=docs
-```
+- Build image using `apps/api/Dockerfile`
+- Run with `infra/docker/docker-compose.prod.yml`
+- Put Nginx reverse proxy config from `infra/nginx/atlas-portal.conf`
+- Configure TLS with Let's Encrypt/certbot
 
-### Develop
+### Web (Vercel)
 
-To develop all apps and packages, run the following command:
+- Deploy `apps/web`
+- Set `NEXT_PUBLIC_API_BASE_URL=https://atlas-portal.raphael-plassart.com`
+- Ensure locale routes (`/fr/*`, `/en/*`) are enabled
 
-```
-cd my-turborepo
+## Core security and domain guarantees
 
-# With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended)
-turbo dev
-
-# Without [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation), use your package manager
-npx turbo dev
-yarn exec turbo dev
-pnpm exec turbo dev
-```
-
-You can develop a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
-
-```
-# With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended)
-turbo dev --filter=web
-
-# Without [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation), use your package manager
-npx turbo dev --filter=web
-yarn exec turbo dev --filter=web
-pnpm exec turbo dev --filter=web
-```
-
-### Remote Caching
-
-> [!TIP]
-> Vercel Remote Cache is free for all plans. Get started today at [vercel.com](https://vercel.com/signup?/signup?utm_source=remote-cache-sdk&utm_campaign=free_remote_cache).
-
-Turborepo can use a technique known as [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching) to share cache artifacts across machines, enabling you to share build caches with your team and CI/CD pipelines.
-
-By default, Turborepo will cache locally. To enable Remote Caching you will need an account with Vercel. If you don't have an account you can [create one](https://vercel.com/signup?utm_source=turborepo-examples), then enter the following commands:
-
-```
-cd my-turborepo
-
-# With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended)
-turbo login
-
-# Without [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation), use your package manager
-npx turbo login
-yarn exec turbo login
-pnpm exec turbo login
-```
-
-This will authenticate the Turborepo CLI with your [Vercel account](https://vercel.com/docs/concepts/personal-accounts/overview).
-
-Next, you can link your Turborepo to your Remote Cache by running the following command from the root of your Turborepo:
-
-```
-# With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended)
-turbo link
-
-# Without [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation), use your package manager
-npx turbo link
-yarn exec turbo link
-pnpm exec turbo link
-```
-
-## Useful Links
-
-Learn more about the power of Turborepo:
-
-- [Tasks](https://turborepo.dev/docs/crafting-your-repository/running-tasks)
-- [Caching](https://turborepo.dev/docs/crafting-your-repository/caching)
-- [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching)
-- [Filtering](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters)
-- [Configuration Options](https://turborepo.dev/docs/reference/configuration)
-- [CLI Usage](https://turborepo.dev/docs/reference/command-line-reference)
+- Password hashing with `argon2`
+- DTO validation (`class-validator`) + strict backend guards
+- RBAC: `ADMIN` / `CLIENT`
+- Workspace isolation on all core resource access
+- Ticket workflow with backend-enforced status transitions
+- Stripe webhook signature verification + idempotency table (`stripe_events`)
+- File uploads via signed URLs (Cloudflare R2)

@@ -29,7 +29,9 @@ export class MilestoneValidationEntity {
   @Column({ type: 'uuid', name: 'project_id' })
   projectId!: string;
 
-  @ManyToOne(() => ProjectEntity, (project) => project.milestoneValidations, { onDelete: 'CASCADE' })
+  @ManyToOne(() => ProjectEntity, (project) => project.milestoneValidations, {
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'project_id' })
   project!: ProjectEntity;
 

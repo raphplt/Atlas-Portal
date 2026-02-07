@@ -32,7 +32,10 @@ export class HttpExceptionFilter implements ExceptionFilter {
       return;
     }
 
-    this.logger.error('Unhandled exception', exception instanceof Error ? exception.stack : undefined);
+    this.logger.error(
+      'Unhandled exception',
+      exception instanceof Error ? exception.stack : undefined,
+    );
 
     response.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
       code: 'INTERNAL_SERVER_ERROR',

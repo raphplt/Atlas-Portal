@@ -33,7 +33,9 @@ export class TicketEntity {
   @Column({ type: 'uuid', name: 'project_id' })
   projectId!: string;
 
-  @ManyToOne(() => ProjectEntity, (project) => project.tickets, { onDelete: 'CASCADE' })
+  @ManyToOne(() => ProjectEntity, (project) => project.tickets, {
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'project_id' })
   project!: ProjectEntity;
 
@@ -65,13 +67,26 @@ export class TicketEntity {
   @Column({ type: 'varchar', length: 3, default: 'EUR' })
   currency!: string;
 
-  @Column({ type: 'varchar', length: 255, name: 'payment_description', nullable: true })
+  @Column({
+    type: 'varchar',
+    length: 255,
+    name: 'payment_description',
+    nullable: true,
+  })
   paymentDescription?: string | null;
 
-  @Column({ type: 'uuid', name: 'converted_task_id', nullable: true, unique: true })
+  @Column({
+    type: 'uuid',
+    name: 'converted_task_id',
+    nullable: true,
+    unique: true,
+  })
   convertedTaskId?: string | null;
 
-  @OneToOne(() => TaskEntity, (task) => task.ticket, { nullable: true, onDelete: 'SET NULL' })
+  @OneToOne(() => TaskEntity, (task) => task.ticket, {
+    nullable: true,
+    onDelete: 'SET NULL',
+  })
   @JoinColumn({ name: 'converted_task_id' })
   convertedTask?: TaskEntity | null;
 
