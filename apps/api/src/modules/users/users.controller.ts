@@ -1,4 +1,11 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { UserRole } from '../../common/enums';
@@ -6,7 +13,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import type { AuthUser } from '../../common/types/auth-user.type';
 import { UserQueryDto } from './dto/user-query.dto';
-import { UsersService } from './users.service';
+import { ClientDetailsPayload, UsersService } from './users.service';
 
 @Controller('users')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -35,6 +42,15 @@ export class UsersController {
       lastName: client.lastName,
       createdAt: client.createdAt,
     }));
+  }
+
+  @Get('clients/:id')
+  @Roles(UserRole.ADMIN)
+  getClientDetails(
+    @CurrentUser() user: AuthUser,
+    @Param('id', new ParseUUIDPipe()) clientId: string,
+  ): Promise<ClientDetailsPayload> {
+    return this.usersService.getWorkspaceClientDetails(user.workspaceId, clientId);
   }
 
   @Get('me')

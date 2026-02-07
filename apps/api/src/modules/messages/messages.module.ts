@@ -10,6 +10,7 @@ import { AuditModule } from '../audit/audit.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { ProjectsModule } from '../projects/projects.module';
 import { MessagesController } from './messages.controller';
+import { MessagesGateway } from './messages.gateway';
 import { MessagesService } from './messages.service';
 
 @Module({
@@ -24,7 +25,8 @@ import { MessagesService } from './messages.service';
     AuditModule,
     NotificationsModule,
   ],
-  providers: [MessagesService],
+  providers: [MessagesGateway, MessagesService],
   controllers: [MessagesController],
+  exports: [MessagesGateway],
 })
 export class MessagesModule {}

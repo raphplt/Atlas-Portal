@@ -10,7 +10,11 @@ import { randomUUID } from 'crypto';
 import { Repository } from 'typeorm';
 import { UserRole } from '../../common/enums';
 import type { AuthUser } from '../../common/types/auth-user.type';
-import { FileAssetEntity } from '../../database/entities';
+import {
+  FileAssetEntity,
+  MessageEntity,
+  TicketEntity,
+} from '../../database/entities';
 import { AuditService } from '../audit/audit.service';
 import { ProjectsService } from '../projects/projects.service';
 import { StorageService } from '../storage/storage.service';
@@ -23,6 +27,10 @@ export class FilesService {
   constructor(
     @InjectRepository(FileAssetEntity)
     private readonly fileRepository: Repository<FileAssetEntity>,
+    @InjectRepository(TicketEntity)
+    private readonly ticketRepository: Repository<TicketEntity>,
+    @InjectRepository(MessageEntity)
+    private readonly messageRepository: Repository<MessageEntity>,
     private readonly configService: ConfigService,
     private readonly projectsService: ProjectsService,
     private readonly storageService: StorageService,
@@ -33,7 +41,10 @@ export class FilesService {
     const project = await this.projectsService.getById(user, dto.projectId);
 
     if (user.role === UserRole.CLIENT && project.clientId !== user.id) {
-      throw new ForbiddenException('Project access denied');
+      throw new ForbiddenException({
+        code: 'FILE_NOT_FOUND',
+        message: 'Project access denied',
+      });
     }
 
     const maxUploadSizeMb = this.configService.get<number>(
@@ -43,7 +54,43 @@ export class FilesService {
     const maxUploadSizeBytes = maxUploadSizeMb * 1024 * 1024;
 
     if (dto.sizeBytes > maxUploadSizeBytes) {
-      throw new BadRequestException(`File size exceeds ${maxUploadSizeMb}MB`);
+      throw new BadRequestException({
+        code: 'FILE_INVALID_TYPE',
+        message: `File size exceeds ${maxUploadSizeMb}MB`,
+      });
+    }
+
+    // Validate ticket/message belong to same project & workspace
+    if (dto.ticketId) {
+      const ticket = await this.ticketRepository.findOne({
+        where: { id: dto.ticketId },
+      });
+      if (
+        !ticket ||
+        ticket.workspaceId !== user.workspaceId ||
+        ticket.projectId !== dto.projectId
+      ) {
+        throw new BadRequestException({
+          code: 'FILE_INVALID_REFERENCE',
+          message: 'Ticket not found or does not belong to this project',
+        });
+      }
+    }
+
+    if (dto.messageId) {
+      const message = await this.messageRepository.findOne({
+        where: { id: dto.messageId },
+      });
+      if (
+        !message ||
+        message.workspaceId !== user.workspaceId ||
+        message.projectId !== dto.projectId
+      ) {
+        throw new BadRequestException({
+          code: 'FILE_INVALID_REFERENCE',
+          message: 'Message not found or does not belong to this project',
+        });
+      }
     }
 
     const key = `${user.workspaceId}/${dto.projectId}/${randomUUID()}-${dto.originalName.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
@@ -95,7 +142,10 @@ export class FilesService {
     const file = await this.fileRepository.findOne({ where: { id: fileId } });
 
     if (!file || file.workspaceId !== user.workspaceId || file.isDeleted) {
-      throw new NotFoundException('File not found');
+      throw new NotFoundException({
+        code: 'FILE_NOT_FOUND',
+        message: 'File not found',
+      });
     }
 
     if (user.role === UserRole.CLIENT && file.uploaderId !== user.id) {
@@ -149,7 +199,10 @@ export class FilesService {
       file.isDeleted ||
       !file.isUploaded
     ) {
-      throw new NotFoundException('File not found');
+      throw new NotFoundException({
+        code: 'FILE_NOT_FOUND',
+        message: 'File not found',
+      });
     }
 
     await this.projectsService.getById(user, file.projectId);
@@ -165,11 +218,17 @@ export class FilesService {
     const file = await this.fileRepository.findOne({ where: { id: fileId } });
 
     if (!file || file.workspaceId !== user.workspaceId || file.isDeleted) {
-      throw new NotFoundException('File not found');
+      throw new NotFoundException({
+        code: 'FILE_NOT_FOUND',
+        message: 'File not found',
+      });
     }
 
     if (user.role !== UserRole.ADMIN) {
-      throw new ForbiddenException('Only admins can delete files');
+      throw new ForbiddenException({
+        code: 'FILE_NOT_FOUND',
+        message: 'Only admins can delete files',
+      });
     }
 
     file.isDeleted = true;

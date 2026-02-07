@@ -15,6 +15,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import type { AuthUser } from '../../common/types/auth-user.type';
 import { CreateTaskDto } from './dto/create-task.dto';
+import { ReorderTasksDto } from './dto/reorder-tasks.dto';
 import { TaskQueryDto } from './dto/task-query.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import { TasksService } from './tasks.service';
@@ -33,6 +34,12 @@ export class TasksController {
   @Roles(UserRole.ADMIN)
   create(@CurrentUser() user: AuthUser, @Body() dto: CreateTaskDto) {
     return this.tasksService.create(user, dto);
+  }
+
+  @Patch('reorder')
+  @Roles(UserRole.ADMIN)
+  reorder(@CurrentUser() user: AuthUser, @Body() dto: ReorderTasksDto) {
+    return this.tasksService.reorder(user, dto);
   }
 
   @Patch(':id')

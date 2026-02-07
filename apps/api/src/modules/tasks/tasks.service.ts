@@ -11,6 +11,7 @@ import { ProjectEntity, TaskEntity } from '../../database/entities';
 import { AuditService } from '../audit/audit.service';
 import { ProjectsService } from '../projects/projects.service';
 import { CreateTaskDto } from './dto/create-task.dto';
+import { ReorderTasksDto } from './dto/reorder-tasks.dto';
 import { TaskQueryDto } from './dto/task-query.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 
@@ -155,6 +156,35 @@ export class TasksService {
     });
 
     return this.taskRepository.save(task);
+  }
+
+  async reorder(user: AuthUser, dto: ReorderTasksDto): Promise<void> {
+    if (user.role !== UserRole.ADMIN) {
+      throw new ForbiddenException('Only admins can reorder tasks');
+    }
+
+    await this.projectsService.getById(user, dto.projectId);
+
+    // Run all updates in a transaction for atomicity
+    await this.taskRepository.manager.transaction(async (manager) => {
+      for (const item of dto.items) {
+        await manager.update(
+          TaskEntity,
+          { id: item.id, workspaceId: user.workspaceId },
+          { status: item.status, position: item.position },
+        );
+      }
+    });
+
+    await this.auditService.create({
+      workspaceId: user.workspaceId,
+      projectId: dto.projectId,
+      actorId: user.id,
+      action: 'TASKS_REORDERED',
+      resourceType: 'Task',
+      resourceId: dto.projectId,
+      metadata: { count: dto.items.length },
+    });
   }
 
   async ensureProjectBelongsToWorkspace(

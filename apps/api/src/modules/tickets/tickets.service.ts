@@ -6,15 +6,37 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { TicketStatus, UserRole } from '../../common/enums';
+import { PaymentStatus, TicketStatus, UserRole } from '../../common/enums';
 import type { AuthUser } from '../../common/types/auth-user.type';
-import { ProjectEntity, TicketEntity } from '../../database/entities';
+import {
+  PaymentEntity,
+  ProjectEntity,
+  TicketEntity,
+  UserEntity,
+} from '../../database/entities';
 import { AuditService } from '../audit/audit.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { ProjectsService } from '../projects/projects.service';
 import { TasksService } from '../tasks/tasks.service';
 import { CreateTicketDto } from './dto/create-ticket.dto';
 import { RequestPaymentDto } from './dto/request-payment.dto';
+import { TicketActionDto } from './dto/ticket-action.dto';
 import { TicketQueryDto } from './dto/ticket-query.dto';
+
+/** Valid status transitions for ticket actions. */
+const ALLOWED_ACCEPT_FROM = [TicketStatus.OPEN, TicketStatus.NEEDS_INFO];
+const ALLOWED_REJECT_FROM = [
+  TicketStatus.OPEN,
+  TicketStatus.NEEDS_INFO,
+  TicketStatus.ACCEPTED,
+];
+const ALLOWED_NEEDS_INFO_FROM = [TicketStatus.OPEN, TicketStatus.ACCEPTED];
+const ALLOWED_REQUEST_PAYMENT_FROM = [
+  TicketStatus.OPEN,
+  TicketStatus.NEEDS_INFO,
+  TicketStatus.ACCEPTED,
+];
+const ALLOWED_CONVERT_FROM = [TicketStatus.ACCEPTED, TicketStatus.PAID];
 
 @Injectable()
 export class TicketsService {
@@ -23,9 +45,14 @@ export class TicketsService {
     private readonly ticketRepository: Repository<TicketEntity>,
     @InjectRepository(ProjectEntity)
     private readonly projectRepository: Repository<ProjectEntity>,
+    @InjectRepository(PaymentEntity)
+    private readonly paymentRepository: Repository<PaymentEntity>,
+    @InjectRepository(UserEntity)
+    private readonly usersRepository: Repository<UserEntity>,
     private readonly projectsService: ProjectsService,
     private readonly tasksService: TasksService,
     private readonly auditService: AuditService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async list(user: AuthUser, query: TicketQueryDto): Promise<TicketEntity[]> {
@@ -78,13 +105,19 @@ export class TicketsService {
       ticket.workspaceId !== user.workspaceId ||
       ticket.isDeleted
     ) {
-      throw new NotFoundException('Ticket not found');
+      throw new NotFoundException({
+        code: 'TICKET_NOT_FOUND',
+        message: 'Ticket not found',
+      });
     }
 
     const project = await this.projectsService.getById(user, ticket.projectId);
 
     if (user.role === UserRole.CLIENT && project.clientId !== user.id) {
-      throw new ForbiddenException('Ticket is not accessible');
+      throw new ForbiddenException({
+        code: 'TICKET_NOT_FOUND',
+        message: 'Ticket is not accessible',
+      });
     }
 
     return ticket;
@@ -94,7 +127,10 @@ export class TicketsService {
     const project = await this.projectsService.getById(user, dto.projectId);
 
     if (user.role === UserRole.CLIENT && project.clientId !== user.id) {
-      throw new ForbiddenException('Cannot create ticket for this project');
+      throw new ForbiddenException({
+        code: 'TICKET_NOT_FOUND',
+        message: 'Cannot create ticket for this project',
+      });
     }
 
     const ticket = this.ticketRepository.create({
@@ -104,13 +140,8 @@ export class TicketsService {
       type: dto.type,
       title: dto.title,
       description: dto.description,
-      requiresPayment: dto.requiresPayment ?? false,
-      priceCents: dto.priceCents,
-      paymentDescription: dto.paymentDescription,
-      status:
-        dto.requiresPayment || (dto.priceCents ?? 0) > 0
-          ? TicketStatus.PAYMENT_REQUIRED
-          : TicketStatus.OPEN,
+      requiresPayment: false,
+      status: TicketStatus.OPEN,
     });
 
     const saved = await this.ticketRepository.save(ticket);
@@ -139,9 +170,39 @@ export class TicketsService {
       return ticket;
     }
 
+    if (!ALLOWED_ACCEPT_FROM.includes(ticket.status)) {
+      throw new BadRequestException({
+        code: 'TICKET_INVALID_TRANSITION',
+        message: `Cannot accept ticket in status ${ticket.status}`,
+      });
+    }
+
     if (ticket.requiresPayment || (ticket.priceCents ?? 0) > 0) {
       ticket.status = TicketStatus.PAYMENT_REQUIRED;
       const updated = await this.ticketRepository.save(ticket);
+
+      // Ensure a linked pending payment exists
+      const existingPayment = await this.paymentRepository.findOne({
+        where: {
+          ticketId: ticket.id,
+          workspaceId: user.workspaceId,
+          status: PaymentStatus.PENDING,
+        },
+      });
+      if (!existingPayment) {
+        const payment = this.paymentRepository.create({
+          workspaceId: user.workspaceId,
+          projectId: ticket.projectId,
+          ticketId: ticket.id,
+          createdById: user.id,
+          title: `Ticket: ${ticket.title}`,
+          description: ticket.paymentDescription ?? null,
+          amountCents: ticket.priceCents ?? 0,
+          currency: 'EUR',
+          status: PaymentStatus.PENDING,
+        });
+        await this.paymentRepository.save(payment);
+      }
 
       await this.auditService.create({
         workspaceId: user.workspaceId,
@@ -157,17 +218,39 @@ export class TicketsService {
 
     ticket.status = TicketStatus.ACCEPTED;
     const accepted = await this.ticketRepository.save(ticket);
+
+    await this.auditService.create({
+      workspaceId: user.workspaceId,
+      projectId: ticket.projectId,
+      actorId: user.id,
+      action: 'TICKET_ACCEPTED',
+      resourceType: 'Ticket',
+      resourceId: ticket.id,
+    });
+
     return this.convertToTask(user, accepted.id);
   }
 
-  async reject(user: AuthUser, ticketId: string): Promise<TicketEntity> {
+  async reject(
+    user: AuthUser,
+    ticketId: string,
+    dto?: TicketActionDto,
+  ): Promise<TicketEntity> {
     const ticket = await this.getById(user, ticketId);
 
     if (user.role !== UserRole.ADMIN) {
       throw new ForbiddenException('Only admin can reject tickets');
     }
 
+    if (!ALLOWED_REJECT_FROM.includes(ticket.status)) {
+      throw new BadRequestException({
+        code: 'TICKET_INVALID_TRANSITION',
+        message: `Cannot reject ticket in status ${ticket.status}`,
+      });
+    }
+
     ticket.status = TicketStatus.REJECTED;
+    ticket.statusReason = dto?.reason ?? null;
     const saved = await this.ticketRepository.save(ticket);
 
     await this.auditService.create({
@@ -177,19 +260,32 @@ export class TicketsService {
       action: 'TICKET_REJECTED',
       resourceType: 'Ticket',
       resourceId: ticket.id,
+      metadata: dto?.reason ? { reason: dto.reason } : {},
     });
 
     return saved;
   }
 
-  async markNeedsInfo(user: AuthUser, ticketId: string): Promise<TicketEntity> {
+  async markNeedsInfo(
+    user: AuthUser,
+    ticketId: string,
+    dto?: TicketActionDto,
+  ): Promise<TicketEntity> {
     const ticket = await this.getById(user, ticketId);
 
     if (user.role !== UserRole.ADMIN) {
       throw new ForbiddenException('Only admin can request more info');
     }
 
+    if (!ALLOWED_NEEDS_INFO_FROM.includes(ticket.status)) {
+      throw new BadRequestException({
+        code: 'TICKET_INVALID_TRANSITION',
+        message: `Cannot request info for ticket in status ${ticket.status}`,
+      });
+    }
+
     ticket.status = TicketStatus.NEEDS_INFO;
+    ticket.statusReason = dto?.reason ?? null;
     const saved = await this.ticketRepository.save(ticket);
 
     await this.auditService.create({
@@ -199,6 +295,7 @@ export class TicketsService {
       action: 'TICKET_NEEDS_INFO',
       resourceType: 'Ticket',
       resourceId: ticket.id,
+      metadata: dto?.reason ? { reason: dto.reason } : {},
     });
 
     return saved;
@@ -215,12 +312,33 @@ export class TicketsService {
       throw new ForbiddenException('Only admin can request payment');
     }
 
+    if (!ALLOWED_REQUEST_PAYMENT_FROM.includes(ticket.status)) {
+      throw new BadRequestException({
+        code: 'TICKET_INVALID_TRANSITION',
+        message: `Cannot request payment for ticket in status ${ticket.status}`,
+      });
+    }
+
     ticket.requiresPayment = true;
     ticket.priceCents = dto.priceCents;
     ticket.paymentDescription = dto.description ?? null;
     ticket.status = TicketStatus.PAYMENT_REQUIRED;
 
     const saved = await this.ticketRepository.save(ticket);
+
+    // Create the linked PaymentEntity so the client can actually pay
+    const payment = this.paymentRepository.create({
+      workspaceId: user.workspaceId,
+      projectId: ticket.projectId,
+      ticketId: ticket.id,
+      createdById: user.id,
+      title: `Ticket: ${ticket.title}`,
+      description: dto.description ?? null,
+      amountCents: dto.priceCents,
+      currency: dto.currency?.toUpperCase() ?? 'EUR',
+      status: PaymentStatus.PENDING,
+    });
+    await this.paymentRepository.save(payment);
 
     await this.auditService.create({
       workspaceId: user.workspaceId,
@@ -229,8 +347,25 @@ export class TicketsService {
       action: 'TICKET_PAYMENT_REQUESTED',
       resourceType: 'Ticket',
       resourceId: ticket.id,
-      metadata: { priceCents: dto.priceCents },
+      metadata: { priceCents: dto.priceCents, paymentId: payment.id },
     });
+
+    // Notify the client
+    const project = await this.projectRepository.findOne({
+      where: { id: ticket.projectId },
+    });
+    if (project) {
+      const client = await this.usersRepository.findOne({
+        where: { id: project.clientId },
+      });
+      if (client) {
+        await this.notificationsService.send({
+          to: client.email,
+          subject: `Payment required – ${ticket.title}`,
+          textBody: `A payment of ${(dto.priceCents / 100).toFixed(2)} EUR is required for ticket "${ticket.title}". Please log in to proceed.`,
+        });
+      }
+    }
 
     return saved;
   }
@@ -243,7 +378,10 @@ export class TicketsService {
         ticket.status,
       )
     ) {
-      throw new BadRequestException('Ticket is not awaiting payment');
+      throw new BadRequestException({
+        code: 'TICKET_INVALID_TRANSITION',
+        message: 'Ticket is not awaiting payment',
+      });
     }
 
     ticket.status = TicketStatus.PAID;
@@ -297,21 +435,19 @@ export class TicketsService {
       return this.ticketRepository.save(ticket);
     }
 
-    const allowedStatuses = [
-      TicketStatus.ACCEPTED,
-      TicketStatus.PAID,
-      TicketStatus.OPEN,
-    ];
-    if (!allowedStatuses.includes(ticket.status)) {
-      throw new BadRequestException(
-        'Ticket cannot be converted in current status',
-      );
+    // P0.2: OPEN removed — only ACCEPTED or PAID tickets can be converted
+    if (!ALLOWED_CONVERT_FROM.includes(ticket.status)) {
+      throw new BadRequestException({
+        code: 'TICKET_INVALID_TRANSITION',
+        message: 'Ticket cannot be converted in current status',
+      });
     }
 
     if ((ticket.priceCents ?? 0) > 0 && ticket.status !== TicketStatus.PAID) {
-      throw new BadRequestException(
-        'Paid ticket must be marked as PAID before conversion',
-      );
+      throw new BadRequestException({
+        code: 'TICKET_PAYMENT_PENDING',
+        message: 'Paid ticket must be marked as PAID before conversion',
+      });
     }
 
     const task = await this.tasksService.createFromTicket(user, {
@@ -373,11 +509,17 @@ export class TicketsService {
     });
 
     if (!project || project.workspaceId !== user.workspaceId) {
-      throw new NotFoundException('Project not found');
+      throw new NotFoundException({
+        code: 'TICKET_NOT_FOUND',
+        message: 'Project not found',
+      });
     }
 
     if (user.role === UserRole.CLIENT && project.clientId !== user.id) {
-      throw new ForbiddenException('Project access denied');
+      throw new ForbiddenException({
+        code: 'TICKET_NOT_FOUND',
+        message: 'Project access denied',
+      });
     }
 
     return project;

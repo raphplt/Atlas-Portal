@@ -38,6 +38,16 @@ export class PaymentsController {
     return this.paymentsService.create(user, dto);
   }
 
+  @Post(':id/cancel')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  cancel(
+    @CurrentUser() user: AuthUser,
+    @Param('id') paymentId: string,
+  ) {
+    return this.paymentsService.cancel(user, paymentId);
+  }
+
   @Post(':id/checkout-session')
   @UseGuards(JwtAuthGuard)
   createCheckoutSession(

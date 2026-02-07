@@ -6,6 +6,7 @@ export interface ProjectSummary {
   progress: number;
   nextAction?: string | null;
   clientId: string;
+  createdAt?: string;
   updatedAt?: string;
 }
 
@@ -17,6 +18,8 @@ export interface ProjectPayload {
   nextAction?: string | null;
   description?: string | null;
   clientId: string;
+  estimatedDeliveryAt?: string | null;
+  createdAt?: string;
 }
 
 export interface ClientSummary {
@@ -26,6 +29,39 @@ export interface ClientSummary {
   lastName?: string | null;
   locale?: string;
   createdAt?: string;
+}
+
+export interface ClientInvitationSummary {
+  id: string;
+  email: string;
+  firstName?: string | null;
+  lastName?: string | null;
+  locale: string;
+  status: string;
+  expiresAt: string;
+  createdAt: string;
+  acceptedAt?: string | null;
+  revokedAt?: string | null;
+}
+
+export interface ClientDetailPayload extends ClientSummary {
+  isActive: boolean;
+  updatedAt: string;
+  stats: {
+    totalProjects: number;
+    activeProjects: number;
+    waitingProjects: number;
+    completedProjects: number;
+    averageProgress: number;
+    lastProjectUpdateAt?: string | null;
+  };
+  invitationStats: {
+    pendingInvitations: number;
+    acceptedInvitations: number;
+    revokedInvitations: number;
+    expiredInvitations: number;
+    latestInvitationAt?: string | null;
+  };
 }
 
 export interface TaskItem {
@@ -49,11 +85,13 @@ export interface TicketItem {
   requiresPayment: boolean;
   priceCents?: number | null;
   paymentDescription?: string | null;
+  statusReason?: string | null;
   createdAt: string;
 }
 
 export interface MessageItem {
   id: string;
+  authorId: string;
   body: string;
   ticketId?: string | null;
   createdAt: string;
@@ -63,7 +101,11 @@ export interface FileItem {
   id: string;
   originalName: string;
   category: string;
+  contentType: string;
+  sizeBytes: number;
+  versionLabel?: string | null;
   isUploaded: boolean;
+  isDeleted: boolean;
   createdAt: string;
 }
 
@@ -91,6 +133,12 @@ export interface MilestoneItem {
   validated: boolean;
   comment?: string | null;
   validatedAt?: string | null;
+  validatedByAdminId?: string | null;
+  validatedByAdminAt?: string | null;
+  adminComment?: string | null;
+  validatedByClientId?: string | null;
+  validatedByClientAt?: string | null;
+  clientComment?: string | null;
 }
 
 export interface AdminNoteItem {

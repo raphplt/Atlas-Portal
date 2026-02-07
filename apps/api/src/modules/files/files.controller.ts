@@ -8,6 +8,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import type { AuthUser } from '../../common/types/auth-user.type';
@@ -26,6 +27,7 @@ export class FilesController {
     return this.filesService.list(user, query);
   }
 
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post('upload-url')
   createUploadUrl(
     @CurrentUser() user: AuthUser,

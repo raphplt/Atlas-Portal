@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import type { AuthUser } from '../../common/types/auth-user.type';
@@ -16,6 +17,7 @@ export class MessagesController {
     return this.messagesService.list(user, query);
   }
 
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
   @Post()
   create(@CurrentUser() user: AuthUser, @Body() dto: CreateMessageDto) {
     return this.messagesService.create(user, dto);

@@ -1,6 +1,7 @@
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
+import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { AppModule } from './app.module';
@@ -19,6 +20,7 @@ async function bootstrap(): Promise<void> {
         .filter((origin) => origin.length > 0)
     : [webAppUrl].filter((origin): origin is string => Boolean(origin));
 
+  app.use(cookieParser());
   app.use(helmet());
   app.enableCors({
     origin: allowedOrigins,

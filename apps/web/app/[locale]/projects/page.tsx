@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ProjectSummary } from '@/lib/portal/types';
-import { Plus, ExternalLink, Trash2, FolderKanban, CheckCircle2 } from 'lucide-react';
+import { Plus, ExternalLink, Trash2, FolderKanban, CheckCircle2, Clock3 } from 'lucide-react';
 
 export default function ProjectsPage() {
   const { session, ready, request } = useAuth();
@@ -77,26 +77,26 @@ export default function ProjectsPage() {
 
   function renderProjectCard(project: ProjectSummary) {
     return (
-      <Card key={project.id} className="transition-all hover:shadow-(--shadow) hover:border-primary/20 hover:-translate-y-0.5">
-        <CardHeader>
+      <Card key={project.id} className="overflow-hidden border-border/70 shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/35 hover:shadow-md">
+        <CardHeader className="gap-3 pb-0">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              <div className="icon-wrapper">
+              <div className="rounded-md bg-secondary p-2 text-primary">
                 <FolderKanban className="h-5 w-5" />
               </div>
-              <CardTitle>{project.name}</CardTitle>
+              <CardTitle className="line-clamp-1 text-base">{project.name}</CardTitle>
             </div>
             <Badge>{t(`status.project.${project.status}`)}</Badge>
           </div>
-          <CardDescription>{project.description ?? t('projects.noDescription')}</CardDescription>
+          <CardDescription className="line-clamp-2">{project.description ?? t('projects.noDescription')}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div>
-            <div className="mb-2 flex justify-between text-xs text-muted">
+          <div className="rounded-lg border border-border/70 bg-muted/30 p-3">
+            <div className="mb-2 flex justify-between text-xs text-muted-foreground">
               <span>{t('project.progress')}</span>
               <span className="font-semibold">{project.progress}%</span>
             </div>
-            <div className="h-2 rounded-full bg-background-alt overflow-hidden">
+            <div className="h-2 overflow-hidden rounded-full bg-secondary">
               <div
                 className="h-full rounded-full bg-primary transition-all duration-500"
                 style={{ width: `${Math.max(0, Math.min(100, project.progress))}%` }}
@@ -104,19 +104,22 @@ export default function ProjectsPage() {
             </div>
           </div>
 
-          <p className="text-sm text-muted">
+          <p className="text-sm text-muted-foreground">
             {t('project.nextAction')}: {project.nextAction ?? t('project.nextActionFallback')}
           </p>
 
-          <div className="flex gap-2">
-            <Link className="btn-secondary w-full flex items-center justify-center gap-2" href={`/${locale}/projects/${project.id}/overview`}>
-              <ExternalLink className="h-4 w-4" />
-              {t('project.open')}
-            </Link>
+          <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+            <Button variant="outline" className="w-full" asChild>
+              <Link href={`/${locale}/projects/${project.id}/overview`}>
+                <ExternalLink className="h-4 w-4" />
+                {t('project.open')}
+              </Link>
+            </Button>
             {isAdmin ? (
               <Button
                 type="button"
                 variant="destructive"
+                className="w-full sm:w-auto"
                 onClick={() => void handleDeleteProject(project.id)}
                 disabled={submitting}
               >
@@ -134,17 +137,19 @@ export default function ProjectsPage() {
     <section className="space-y-8">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="flex items-center gap-3">
-            <FolderKanban className="h-8 w-8 text-primary" />
+          <h1 className="flex items-center gap-3 text-2xl font-semibold">
+            <FolderKanban className="h-6 w-6 text-primary" />
             {t('projects.title')}
           </h1>
-          <p>{t('projects.subtitle')}</p>
+          <p className="mt-1 text-sm text-muted-foreground">{t('projects.subtitle')}</p>
         </div>
         {isAdmin ? (
-          <Link className="btn-primary" href={`/${locale}/projects/new`}>
-            <Plus className="h-5 w-5" />
-            {t('projects.cta.new')}
-          </Link>
+          <Button asChild>
+            <Link href={`/${locale}/projects/new`}>
+              <Plus className="h-5 w-5" />
+              {t('projects.cta.new')}
+            </Link>
+          </Button>
         ) : null}
       </div>
 
@@ -155,8 +160,8 @@ export default function ProjectsPage() {
 
       {grouped.active.length > 0 ? (
         <div className="space-y-3">
-          <h2 className="text-xl flex items-center gap-2">
-            <div className="h-1 w-1 rounded-full bg-primary animate-pulse"></div>
+          <h2 className="flex items-center gap-2 text-xl font-semibold">
+            <Clock3 className="h-5 w-5 text-primary" />
             {t('projects.section.active')}
           </h2>
           <div className="grid gap-4 lg:grid-cols-2">{grouped.active.map(renderProjectCard)}</div>
@@ -165,8 +170,8 @@ export default function ProjectsPage() {
 
       {grouped.done.length > 0 ? (
         <div className="space-y-3">
-          <h2 className="text-xl flex items-center gap-2">
-            <CheckCircle2 className="h-5 w-5 text-green-600" />
+          <h2 className="flex items-center gap-2 text-xl font-semibold">
+            <CheckCircle2 className="h-5 w-5 text-primary" />
             {t('projects.section.done')}
           </h2>
           <div className="grid gap-4 lg:grid-cols-2">{grouped.done.map(renderProjectCard)}</div>

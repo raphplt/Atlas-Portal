@@ -8,6 +8,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { UserRole } from '../../common/enums';
@@ -16,6 +17,7 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import type { AuthUser } from '../../common/types/auth-user.type';
 import { CreateTicketDto } from './dto/create-ticket.dto';
 import { RequestPaymentDto } from './dto/request-payment.dto';
+import { TicketActionDto } from './dto/ticket-action.dto';
 import { TicketQueryDto } from './dto/ticket-query.dto';
 import { TicketsService } from './tickets.service';
 
@@ -34,6 +36,7 @@ export class TicketsController {
     return this.ticketsService.getById(user, id);
   }
 
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post()
   create(@CurrentUser() user: AuthUser, @Body() dto: CreateTicketDto) {
     return this.ticketsService.create(user, dto);
@@ -47,16 +50,25 @@ export class TicketsController {
 
   @Post(':id/reject')
   @Roles(UserRole.ADMIN)
-  reject(@CurrentUser() user: AuthUser, @Param('id') id: string) {
-    return this.ticketsService.reject(user, id);
+  reject(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Body() dto: TicketActionDto,
+  ) {
+    return this.ticketsService.reject(user, id, dto);
   }
 
   @Post(':id/needs-info')
   @Roles(UserRole.ADMIN)
-  needsInfo(@CurrentUser() user: AuthUser, @Param('id') id: string) {
-    return this.ticketsService.markNeedsInfo(user, id);
+  needsInfo(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Body() dto: TicketActionDto,
+  ) {
+    return this.ticketsService.markNeedsInfo(user, id, dto);
   }
 
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post(':id/request-payment')
   @Roles(UserRole.ADMIN)
   requestPayment(

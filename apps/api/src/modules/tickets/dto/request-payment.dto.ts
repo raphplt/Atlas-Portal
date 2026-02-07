@@ -9,4 +9,9 @@ export class RequestPaymentDto {
   @IsString()
   @MaxLength(255)
   description?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(3)
+  currency?: string;
 }

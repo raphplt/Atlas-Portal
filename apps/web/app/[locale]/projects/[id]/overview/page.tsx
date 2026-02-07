@@ -1,40 +1,26 @@
 'use client';
 
-import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useProjectContext } from '@/components/portal/project-context';
 import { ProjectOverview } from '@/components/portal/project-overview';
-import { ProjectPageShell } from '@/components/portal/project-page-shell';
-import { useProjectPageBase } from '@/components/portal/use-project-page-base';
 import { useTranslations } from '@/components/providers/translation-provider';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { DashboardPayload } from '@/lib/portal/types';
 
 export default function ProjectOverviewPage() {
-  const params = useParams<{ locale: string; id: string }>();
-  const { locale, id } = params;
+  const { locale, projectId, project, error, setError, request } = useProjectContext();
   const { t } = useTranslations();
-
-  const {
-    project,
-    loading,
-    error,
-    setError,
-    isAdmin,
-    request,
-  } = useProjectPageBase(locale, id);
 
   const [dashboard, setDashboard] = useState<DashboardPayload | null>(null);
 
   const loadData = useCallback(async () => {
     try {
-      const data = await request<DashboardPayload>(`/projects/${id}/dashboard`);
+      const data = await request<DashboardPayload>(`/projects/${projectId}/dashboard`);
       setDashboard(data);
       setError(null);
     } catch {
-      setError('PROJECT_LOAD_FAILED');
+      setError(t('project.overview.loadError'));
     }
-  }, [id, request, setError]);
+  }, [projectId, request, setError, t]);
 
   useEffect(() => {
     if (!project) {
@@ -43,69 +29,15 @@ export default function ProjectOverviewPage() {
     void loadData();
   }, [loadData, project]);
 
-  if (loading || !project || !dashboard) {
+  if (!project) return null;
+
+  if (!dashboard) {
     return <p>{t('project.loading')}</p>;
   }
 
   if (error) {
-    return <p>{t('project.error')}</p>;
+    return <p className="text-sm text-red-600">{error}</p>;
   }
 
-  return (
-    <ProjectPageShell locale={locale} project={project} isAdmin={isAdmin} activeTab="overview">
-      <div className="space-y-6">
-        <ProjectOverview dashboard={dashboard} />
-
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <Card>
-            <CardHeader>
-              <CardDescription>{t('project.section.tasks')}</CardDescription>
-              <CardTitle>{dashboard.summary.totalTasks}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Link className="text-sm text-[var(--color-primary)] hover:underline" href={`/${locale}/projects/${id}/tasks`}>
-                {t('project.goToModule')}
-              </Link>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardDescription>{t('project.tasks.done')}</CardDescription>
-              <CardTitle>{dashboard.summary.doneTasks}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Link className="text-sm text-[var(--color-primary)] hover:underline" href={`/${locale}/projects/${id}/tasks`}>
-                {t('project.goToModule')}
-              </Link>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardDescription>{t('project.tasks.blocked')}</CardDescription>
-              <CardTitle>{dashboard.summary.blockedTasks}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Link className="text-sm text-[var(--color-primary)] hover:underline" href={`/${locale}/projects/${id}/tasks`}>
-                {t('project.goToModule')}
-              </Link>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardDescription>{t('project.tasks.completionRate')}</CardDescription>
-              <CardTitle>{dashboard.summary.completionRate}%</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Link className="text-sm text-[var(--color-primary)] hover:underline" href={`/${locale}/projects/${id}/overview`}>
-                {t('project.goToModule')}
-              </Link>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    </ProjectPageShell>
-  );
+  return <ProjectOverview locale={locale} projectId={projectId} dashboard={dashboard} />;
 }

@@ -78,7 +78,7 @@ export default function AcceptInvitationPage() {
     setError(null);
 
     try {
-      const session = await anonymousRequest<SessionState>(
+      const result = await anonymousRequest<{ user: SessionState['user']; workspace?: SessionState['workspace'] }>(
         `/invitations/public/${encodeURIComponent(token)}/accept`,
         'POST',
         {
@@ -89,7 +89,7 @@ export default function AcceptInvitationPage() {
         },
       );
 
-      setSession(session);
+      setSession({ user: result.user, workspace: result.workspace });
       router.push(`/${locale}/dashboard`);
     } catch {
       setError(t('invitation.acceptError'));
@@ -111,7 +111,7 @@ export default function AcceptInvitationPage() {
 
           {!loading && invitation ? (
             <>
-              <div className="rounded-[var(--radius)] border border-[var(--color-border)] bg-[var(--color-background-alt)] p-4 text-sm">
+              <div className="rounded-md border border-border bg-secondary p-4 text-sm">
                 <p>
                   <strong>{t('invitation.workspace')}:</strong> {invitation.workspaceName}
                 </p>
@@ -143,7 +143,7 @@ export default function AcceptInvitationPage() {
                 </div>
                 <div>
                   <Label htmlFor="accept-locale">{t('clients.form.locale')}</Label>
-                  <select id="accept-locale" name="locale" className="input-base" defaultValue={defaultLocale}>
+                  <select id="accept-locale" name="locale" className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-xs transition-colors focus-visible:border-ring focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 md:text-sm" defaultValue={defaultLocale}>
                     <option value="fr">FR</option>
                     <option value="en">EN</option>
                   </select>

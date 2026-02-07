@@ -20,7 +20,6 @@ import { UsersService } from '../users/users.service';
 import { WorkspacesService } from '../workspaces/workspaces.service';
 import { CreateClientDto } from './dto/create-client.dto';
 import { LoginDto } from './dto/login.dto';
-import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { RegisterAdminDto } from './dto/register-admin.dto';
 
 interface TokenBundle {
@@ -94,7 +93,10 @@ export class AuthService {
       );
 
       if (!workspace) {
-        throw new UnauthorizedException('Invalid credentials');
+        throw new UnauthorizedException({
+          code: 'AUTH_INVALID_CREDENTIALS',
+          message: 'Invalid credentials',
+        });
       }
 
       user = await this.usersService.findByWorkspaceAndEmail(
@@ -104,12 +106,17 @@ export class AuthService {
     } else {
       const users = await this.usersService.findActiveByEmail(normalizedEmail);
       if (users.length === 0) {
-        throw new UnauthorizedException('Invalid credentials');
+        throw new UnauthorizedException({
+          code: 'AUTH_INVALID_CREDENTIALS',
+          message: 'Invalid credentials',
+        });
       }
       if (users.length > 1) {
-        throw new BadRequestException(
-          'Multiple workspaces found for this email. Use a workspace-specific login link.',
-        );
+        throw new BadRequestException({
+          code: 'AUTH_MULTIPLE_WORKSPACES',
+          message:
+            'Multiple workspaces found for this email. Use a workspace-specific login link.',
+        });
       }
 
       user = users[0];
@@ -117,33 +124,43 @@ export class AuthService {
     }
 
     if (!user || !user.isActive) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException({
+        code: 'AUTH_INVALID_CREDENTIALS',
+        message: 'Invalid credentials',
+      });
     }
 
     const passwordValid = await argon2.verify(user.passwordHash, dto.password);
     if (!passwordValid) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException({
+        code: 'AUTH_INVALID_CREDENTIALS',
+        message: 'Invalid credentials',
+      });
     }
 
     return this.createSessionForUser(user, workspace);
   }
 
-  async refresh(dto: RefreshTokenDto) {
+  async refreshByCookie(refreshTokenValue: string) {
     const refreshSecret = this.configService.get<string>('JWT_REFRESH_SECRET');
     if (!refreshSecret) {
-      throw new UnauthorizedException('Refresh token not configured');
+      throw new UnauthorizedException({
+        code: 'AUTH_TOKEN_EXPIRED',
+        message: 'Refresh token not configured',
+      });
     }
 
     let payload: RefreshTokenPayload;
     try {
       payload = await this.jwtService.verifyAsync<RefreshTokenPayload>(
-        dto.refreshToken,
-        {
-          secret: refreshSecret,
-        },
+        refreshTokenValue,
+        { secret: refreshSecret },
       );
     } catch {
-      throw new UnauthorizedException('Invalid refresh token');
+      throw new UnauthorizedException({
+        code: 'AUTH_TOKEN_EXPIRED',
+        message: 'Invalid refresh token',
+      });
     }
 
     const tokenRecord = await this.refreshTokenRepository.findOne({
@@ -155,16 +172,22 @@ export class AuthService {
       tokenRecord.revokedAt ||
       tokenRecord.expiresAt.getTime() < Date.now()
     ) {
-      throw new UnauthorizedException('Refresh token revoked');
+      throw new UnauthorizedException({
+        code: 'AUTH_TOKEN_EXPIRED',
+        message: 'Refresh token revoked',
+      });
     }
 
     const tokenValid = await argon2.verify(
       tokenRecord.tokenHash,
-      dto.refreshToken,
+      refreshTokenValue,
     );
 
     if (!tokenValid) {
-      throw new UnauthorizedException('Refresh token invalid');
+      throw new UnauthorizedException({
+        code: 'AUTH_TOKEN_EXPIRED',
+        message: 'Refresh token invalid',
+      });
     }
 
     const user = await this.usersService.findByIdOrFail(payload.sub);
@@ -180,7 +203,7 @@ export class AuthService {
     };
   }
 
-  async logout(dto: RefreshTokenDto): Promise<{ success: true }> {
+  async logoutByCookie(refreshTokenValue: string): Promise<{ success: true }> {
     const refreshSecret = this.configService.get<string>('JWT_REFRESH_SECRET');
     if (!refreshSecret) {
       return { success: true };
@@ -188,17 +211,13 @@ export class AuthService {
 
     try {
       const payload = await this.jwtService.verifyAsync<RefreshTokenPayload>(
-        dto.refreshToken,
-        {
-          secret: refreshSecret,
-        },
+        refreshTokenValue,
+        { secret: refreshSecret },
       );
 
       await this.refreshTokenRepository.update(
         { id: payload.tokenId, revokedAt: IsNull() },
-        {
-          revokedAt: new Date(),
-        },
+        { revokedAt: new Date() },
       );
     } catch {
       // If token is already invalid, logout is considered successful.
@@ -207,9 +226,21 @@ export class AuthService {
     return { success: true };
   }
 
+  getAccessTtlSeconds(): number {
+    const accessTtl = this.configService.get<string>('JWT_ACCESS_TTL', '15m');
+    return this.parseTokenTtlToSeconds(accessTtl);
+  }
+
+  getRefreshTtlDays(): number {
+    return this.configService.get<number>('JWT_REFRESH_TTL_DAYS', 7);
+  }
+
   async createClient(authUser: AuthUser, dto: CreateClientDto) {
     if (authUser.role !== UserRole.ADMIN) {
-      throw new UnauthorizedException('Only admins can create clients');
+      throw new UnauthorizedException({
+        code: 'AUTH_INVALID_CREDENTIALS',
+        message: 'Only admins can create clients',
+      });
     }
 
     const existing = await this.usersService.findByWorkspaceAndEmail(
@@ -218,7 +249,10 @@ export class AuthService {
     );
 
     if (existing) {
-      throw new BadRequestException('Email already exists in workspace');
+      throw new BadRequestException({
+        code: 'AUTH_EMAIL_EXISTS',
+        message: 'Email already exists in workspace',
+      });
     }
 
     const passwordHash = await argon2.hash(dto.password);
@@ -270,7 +304,10 @@ export class AuthService {
     );
 
     if (!accessSecret || !refreshSecret) {
-      throw new UnauthorizedException('JWT secrets are not configured');
+      throw new UnauthorizedException({
+        code: 'AUTH_TOKEN_EXPIRED',
+        message: 'JWT secrets are not configured',
+      });
     }
 
     const tokenId = randomUUID();
@@ -384,8 +421,9 @@ export class AuthService {
       }
     }
 
-    throw new BadRequestException(
-      'Unable to generate a unique workspace identifier',
-    );
+    throw new BadRequestException({
+      code: 'AUTH_SLUG_UNAVAILABLE',
+      message: 'Unable to generate a unique workspace identifier',
+    });
   }
 }

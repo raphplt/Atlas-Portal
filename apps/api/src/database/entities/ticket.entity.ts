@@ -76,6 +76,14 @@ export class TicketEntity {
   paymentDescription?: string | null;
 
   @Column({
+    type: 'varchar',
+    length: 1000,
+    name: 'status_reason',
+    nullable: true,
+  })
+  statusReason?: string | null;
+
+  @Column({
     type: 'uuid',
     name: 'converted_task_id',
     nullable: true,

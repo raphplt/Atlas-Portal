@@ -113,7 +113,36 @@ export class ProjectsService {
 
     qb.orderBy('project.created_at', 'DESC').limit(query.limit);
 
-    return qb.getMany();
+    const projects = await qb.getMany();
+
+    // Compute progress from task completion instead of manual field
+    const projectIds = projects.map((p) => p.id);
+    if (projectIds.length > 0) {
+      const taskStats: { projectId: string; total: string; done: string }[] =
+        await this.tasksRepository
+          .createQueryBuilder('task')
+          .select('task.project_id', 'projectId')
+          .addSelect('COUNT(*)', 'total')
+          .addSelect(
+            "COUNT(CASE WHEN task.status = 'DONE' THEN 1 END)",
+            'done',
+          )
+          .where('task.project_id IN (:...projectIds)', { projectIds })
+          .groupBy('task.project_id')
+          .getRawMany();
+
+      const statsMap = new Map(taskStats.map((s) => [s.projectId, s]));
+      for (const project of projects) {
+        const stats = statsMap.get(project.id);
+        if (stats && Number(stats.total) > 0) {
+          project.progress = Math.round(
+            (Number(stats.done) * 100) / Number(stats.total),
+          );
+        }
+      }
+    }
+
+    return projects;
   }
 
   async getById(user: AuthUser, projectId: string): Promise<ProjectEntity> {
@@ -211,16 +240,21 @@ export class ProjectsService {
         }),
       ]);
 
+    const completionRate =
+      openTasksCount === 0
+        ? 0
+        : Math.round((doneTasksCount / openTasksCount) * 100);
+
     return {
-      project,
+      project: {
+        ...project,
+        progress: completionRate,
+      } as ProjectEntity,
       summary: {
         totalTasks: openTasksCount,
         doneTasks: doneTasksCount,
         blockedTasks: blockedTasksCount,
-        completionRate:
-          openTasksCount === 0
-            ? 0
-            : Math.round((doneTasksCount / openTasksCount) * 100),
+        completionRate,
       },
       latestUpdate: lastTask
         ? {
@@ -251,21 +285,57 @@ export class ProjectsService {
       throw new NotFoundException('Milestone record not found');
     }
 
-    current.validated = dto.validated;
-    current.comment = dto.comment;
-    current.validatedAt = dto.validated ? new Date() : null;
-    current.validatedById = dto.validated ? user.id : null;
+    const now = new Date();
+
+    if (user.role === UserRole.ADMIN) {
+      if (dto.validated) {
+        current.validatedByAdminId = user.id;
+        current.validatedByAdminAt = now;
+        current.adminComment = dto.comment ?? null;
+      } else {
+        current.validatedByAdminId = null;
+        current.validatedByAdminAt = null;
+        current.adminComment = null;
+      }
+    } else {
+      // CLIENT
+      if (dto.validated) {
+        current.validatedByClientId = user.id;
+        current.validatedByClientAt = now;
+        current.clientComment = dto.comment ?? null;
+      } else {
+        current.validatedByClientId = null;
+        current.validatedByClientAt = null;
+        current.clientComment = null;
+      }
+    }
+
+    // Fully validated only when both parties have signed off
+    current.validated =
+      !!current.validatedByAdminAt && !!current.validatedByClientAt;
+
+    // Keep legacy fields in sync for backward compat
+    current.validatedAt = current.validated ? now : null;
+    current.validatedById = current.validated ? user.id : null;
+    current.comment = dto.comment ?? current.comment;
 
     const updated = await this.milestoneRepository.save(current);
 
+    const actionSuffix = user.role === UserRole.ADMIN ? 'ADMIN' : 'CLIENT';
     await this.auditService.create({
       workspaceId: user.workspaceId,
       projectId,
       actorId: user.id,
-      action: dto.validated ? 'MILESTONE_VALIDATED' : 'MILESTONE_UNVALIDATED',
+      action: dto.validated
+        ? `MILESTONE_VALIDATED_BY_${actionSuffix}`
+        : `MILESTONE_UNVALIDATED_BY_${actionSuffix}`,
       resourceType: 'MilestoneValidation',
       resourceId: updated.id,
-      metadata: { type: dto.type, comment: dto.comment ?? null },
+      metadata: {
+        type: dto.type,
+        comment: dto.comment ?? null,
+        fullyValidated: updated.validated,
+      },
     });
 
     return updated;

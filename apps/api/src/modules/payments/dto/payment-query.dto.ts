@@ -7,6 +7,10 @@ export class PaymentQueryDto extends PaginationQueryDto {
   projectId!: string;
 
   @IsOptional()
+  @IsUUID()
+  ticketId?: string;
+
+  @IsOptional()
   @IsEnum(PaymentStatus)
   status?: PaymentStatus;
 }

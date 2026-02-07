@@ -55,7 +55,10 @@ export class PaymentsService {
   async list(user: AuthUser, query: PaymentQueryDto): Promise<PaymentEntity[]> {
     const project = await this.projectsService.getById(user, query.projectId);
     if (user.role === UserRole.CLIENT && project.clientId !== user.id) {
-      throw new ForbiddenException('Project access denied');
+      throw new ForbiddenException({
+        code: 'PAYMENT_NOT_FOUND',
+        message: 'Project access denied',
+      });
     }
 
     const qb = this.paymentRepository.createQueryBuilder('payment');
@@ -65,6 +68,12 @@ export class PaymentsService {
     qb.andWhere('payment.project_id = :projectId', {
       projectId: query.projectId,
     });
+
+    if (query.ticketId) {
+      qb.andWhere('payment.ticket_id = :ticketId', {
+        ticketId: query.ticketId,
+      });
+    }
 
     if (query.status) {
       qb.andWhere('payment.status = :status', { status: query.status });
@@ -78,7 +87,10 @@ export class PaymentsService {
 
   async create(user: AuthUser, dto: CreatePaymentDto): Promise<PaymentEntity> {
     if (user.role !== UserRole.ADMIN) {
-      throw new ForbiddenException('Only admins can create payment requests');
+      throw new ForbiddenException({
+        code: 'PAYMENT_NOT_FOUND',
+        message: 'Only admins can create payment requests',
+      });
     }
 
     await this.projectsService.getById(user, dto.projectId);
@@ -92,7 +104,10 @@ export class PaymentsService {
         ticket.workspaceId !== user.workspaceId ||
         ticket.projectId !== dto.projectId
       ) {
-        throw new BadRequestException('Ticket not found for this project');
+        throw new BadRequestException({
+          code: 'PAYMENT_NOT_FOUND',
+          message: 'Ticket not found for this project',
+        });
       }
 
       ticket.status = TicketStatus.PAYMENT_REQUIRED;
@@ -145,12 +160,15 @@ export class PaymentsService {
     return saved;
   }
 
-  async createCheckoutSession(
+  async cancel(
     user: AuthUser,
     paymentId: string,
-  ): Promise<{ url: string }> {
-    if (!this.stripe) {
-      throw new InternalServerErrorException('Stripe is not configured');
+  ): Promise<PaymentEntity> {
+    if (user.role !== UserRole.ADMIN) {
+      throw new ForbiddenException({
+        code: 'PAYMENT_NOT_FOUND',
+        message: 'Only admins can cancel payment requests',
+      });
     }
 
     const payment = await this.paymentRepository.findOne({
@@ -158,29 +176,105 @@ export class PaymentsService {
     });
 
     if (!payment || payment.workspaceId !== user.workspaceId) {
-      throw new NotFoundException('Payment not found');
+      throw new NotFoundException({
+        code: 'PAYMENT_NOT_FOUND',
+        message: 'Payment not found',
+      });
+    }
+
+    if (payment.status !== PaymentStatus.PENDING) {
+      throw new BadRequestException({
+        code: 'PAYMENT_NOT_PENDING',
+        message: 'Only pending payments can be canceled',
+      });
+    }
+
+    payment.status = PaymentStatus.CANCELED;
+    const saved = await this.paymentRepository.save(payment);
+
+    // If linked to a ticket in PAYMENT_REQUIRED, revert ticket to ACCEPTED
+    if (payment.ticketId) {
+      const ticket = await this.ticketsRepository.findOne({
+        where: { id: payment.ticketId },
+      });
+      if (ticket && ticket.status === TicketStatus.PAYMENT_REQUIRED) {
+        ticket.status = TicketStatus.ACCEPTED;
+        ticket.requiresPayment = false;
+        ticket.priceCents = null as unknown as number;
+        await this.ticketsRepository.save(ticket);
+      }
+    }
+
+    await this.auditService.create({
+      workspaceId: payment.workspaceId,
+      projectId: payment.projectId,
+      actorId: user.id,
+      action: 'PAYMENT_CANCELED',
+      resourceType: 'Payment',
+      resourceId: payment.id,
+    });
+
+    return saved;
+  }
+
+  async createCheckoutSession(
+    user: AuthUser,
+    paymentId: string,
+  ): Promise<{ url: string }> {
+    if (!this.stripe) {
+      throw new InternalServerErrorException({
+        code: 'PAYMENT_CHECKOUT_FAILED',
+        message: 'Stripe is not configured',
+      });
+    }
+
+    const payment = await this.paymentRepository.findOne({
+      where: { id: paymentId },
+    });
+
+    if (!payment || payment.workspaceId !== user.workspaceId) {
+      throw new NotFoundException({
+        code: 'PAYMENT_NOT_FOUND',
+        message: 'Payment not found',
+      });
     }
 
     const project = await this.projectsService.getById(user, payment.projectId);
 
     if (user.role === UserRole.CLIENT && project.clientId !== user.id) {
-      throw new ForbiddenException('Payment is not accessible');
+      throw new ForbiddenException({
+        code: 'PAYMENT_NOT_FOUND',
+        message: 'Payment is not accessible',
+      });
     }
 
     if (payment.status !== PaymentStatus.PENDING) {
-      throw new BadRequestException('Payment is not pending');
+      throw new BadRequestException({
+        code: 'PAYMENT_ALREADY_PAID',
+        message: 'Payment is not pending',
+      });
     }
 
-    const successUrl =
-      this.configService.get<string>('STRIPE_SUCCESS_URL') ??
-      `${this.configService.get<string>('WEB_APP_URL')}/payments/success`;
-    const cancelUrl =
-      this.configService.get<string>('STRIPE_CANCEL_URL') ??
-      `${this.configService.get<string>('WEB_APP_URL')}/payments/cancel`;
+    // Resolve client info for Stripe pre-fill
+    const client = await this.usersRepository.findOne({
+      where: { id: project.clientId },
+    });
+
+    const webAppUrl =
+      this.configService.get<string>('WEB_APP_URL') ?? 'http://localhost:3000';
+    const clientLocale =
+      client?.locale?.toLowerCase() === 'en' ? 'en' : 'fr';
+    const successUrl = `${webAppUrl}/${clientLocale}/payments/success`;
+    const cancelUrl = `${webAppUrl}/${clientLocale}/payments/cancel`;
+
+    const clientName = [client?.firstName, client?.lastName]
+      .filter(Boolean)
+      .join(' ');
 
     const session = await this.stripe.checkout.sessions.create({
       mode: 'payment',
       payment_method_types: ['card'],
+      customer_email: client?.email ?? undefined,
       line_items: [
         {
           quantity: 1,
@@ -197,16 +291,21 @@ export class PaymentsService {
       metadata: {
         paymentId: payment.id,
         workspaceId: payment.workspaceId,
+        projectId: payment.projectId,
+        ...(clientName ? { clientName } : {}),
       },
       success_url: `${successUrl}?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: cancelUrl,
+      cancel_url: `${cancelUrl}?project_id=${payment.projectId}`,
     });
 
     payment.stripeCheckoutSessionId = session.id;
     await this.paymentRepository.save(payment);
 
     if (!session.url) {
-      throw new InternalServerErrorException('Stripe session URL is missing');
+      throw new InternalServerErrorException({
+        code: 'PAYMENT_CHECKOUT_FAILED',
+        message: 'Stripe session URL is missing',
+      });
     }
 
     return { url: session.url };
@@ -217,14 +316,20 @@ export class PaymentsService {
     signature?: string,
   ): Promise<{ received: true }> {
     if (!this.stripe) {
-      throw new InternalServerErrorException('Stripe is not configured');
+      throw new InternalServerErrorException({
+        code: 'PAYMENT_CHECKOUT_FAILED',
+        message: 'Stripe is not configured',
+      });
     }
 
     const webhookSecret = this.configService.get<string>(
       'STRIPE_WEBHOOK_SECRET',
     );
     if (!webhookSecret || !signature) {
-      throw new BadRequestException('Stripe webhook signature is missing');
+      throw new BadRequestException({
+        code: 'PAYMENT_CHECKOUT_FAILED',
+        message: 'Stripe webhook signature is missing',
+      });
     }
 
     let event: Stripe.Event;
@@ -235,7 +340,10 @@ export class PaymentsService {
         webhookSecret,
       );
     } catch {
-      throw new BadRequestException('Invalid Stripe signature');
+      throw new BadRequestException({
+        code: 'PAYMENT_CHECKOUT_FAILED',
+        message: 'Invalid Stripe signature',
+      });
     }
 
     const alreadyProcessed = await this.stripeEventsRepository.findOne({

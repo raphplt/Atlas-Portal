@@ -1,7 +1,7 @@
 'use client';
 
 import { FormEvent, useCallback, useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/components/providers/auth-provider';
 import { useTranslations } from '@/components/providers/translation-provider';
@@ -16,8 +16,10 @@ export default function NewProjectPage() {
   const { session, ready, request } = useAuth();
   const params = useParams<{ locale: string }>();
   const locale = params.locale;
+  const searchParams = useSearchParams();
   const router = useRouter();
   const { t } = useTranslations();
+  const preselectedClientId = searchParams.get('clientId') ?? '';
 
   const [clients, setClients] = useState<ClientSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -87,7 +89,7 @@ export default function NewProjectPage() {
   return (
     <section className="mx-auto max-w-4xl space-y-6">
       <div className="space-y-2">
-        <Link href={`/${locale}/projects`} className="text-sm text-[var(--color-muted)] hover:underline">
+        <Link href={`/${locale}/projects`} className="text-sm text-muted-foreground hover:underline">
           {t('project.backToProjects')}
         </Link>
         <h1>{t('projects.createTitle')}</h1>
@@ -107,7 +109,7 @@ export default function NewProjectPage() {
             <form className="grid gap-4 md:grid-cols-2" onSubmit={(event) => void handleSubmit(event)}>
               <div>
                 <Label htmlFor="project-client">{t('projects.form.client')}</Label>
-                <select id="project-client" name="clientId" className="input-base" required>
+                <select id="project-client" name="clientId" className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-xs transition-colors focus-visible:border-ring focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 md:text-sm" defaultValue={preselectedClientId} required>
                   <option value="">{t('projects.form.clientPlaceholder')}</option>
                   {clients.map((client) => (
                     <option key={client.id} value={client.id}>
@@ -142,9 +144,9 @@ export default function NewProjectPage() {
                 <Button type="submit" disabled={submitting || clients.length === 0}>
                   {t('projects.form.submit')}
                 </Button>
-                <Link className="btn-secondary" href={`/${locale}/projects`}>
-                  {t('common.cancel')}
-                </Link>
+                <Button variant="outline" asChild>
+                  <Link href={`/${locale}/projects`}>{t('common.cancel')}</Link>
+                </Button>
               </div>
             </form>
           ) : null}

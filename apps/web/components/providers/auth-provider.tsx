@@ -27,10 +27,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
   const router = useRouter();
 
+  // Restore user/workspace info from localStorage (tokens are in httpOnly cookies)
   useEffect(() => {
     const stored = readStoredSession();
-    setSession(stored);
-    setReady(true);
+    if (stored) {
+      setSession(stored);
+      setReady(true);
+    } else {
+      // Try a silent refresh — cookies may still be valid from a previous session
+      anonymousRequest<{ user: SessionState['user']; workspace?: SessionState['workspace'] }>('/auth/refresh', 'POST')
+        .then((result) => {
+          const restoredSession: SessionState = {
+            user: result.user,
+            workspace: result.workspace,
+          };
+          setSession(restoredSession);
+          writeStoredSession(restoredSession);
+        })
+        .catch(() => {
+          // No valid session
+        })
+        .finally(() => setReady(true));
+    }
   }, []);
 
   const updateSession = useCallback((nextSession: SessionState | null) => {
@@ -39,22 +57,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = useCallback(async (payload: LoginPayload) => {
-    const response = await anonymousRequest<SessionState & { workspace: SessionState['workspace'] }>(
+    const response = await anonymousRequest<{ user: SessionState['user']; workspace?: SessionState['workspace'] }>(
       '/auth/login',
       'POST',
       payload,
     );
-    updateSession(response);
+    updateSession({ user: response.user, workspace: response.workspace });
   }, [updateSession]);
 
   const logout = useCallback(async () => {
-    if (session?.refreshToken) {
-      await anonymousRequest('/auth/logout', 'POST', { refreshToken: session.refreshToken }).catch(() => undefined);
-    }
-
+    await anonymousRequest('/auth/logout', 'POST').catch(() => undefined);
     updateSession(null);
     router.refresh();
-  }, [router, session?.refreshToken, updateSession]);
+  }, [router, updateSession]);
 
   const request = useCallback(async <T,>(
     path: string,

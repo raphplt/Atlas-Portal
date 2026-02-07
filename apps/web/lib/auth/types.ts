@@ -15,8 +15,6 @@ export interface WorkspaceSessionInfo {
 }
 
 export interface SessionState {
-  accessToken: string;
-  refreshToken: string;
   user: UserSessionInfo;
   workspace?: WorkspaceSessionInfo;
 }

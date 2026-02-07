@@ -9,6 +9,7 @@ import { ConfigService } from '@nestjs/config';
 import { Request } from 'express';
 import { UserRole } from '../enums';
 import type { AuthUser } from '../types/auth-user.type';
+import { readAccessCookie } from '../utils/cookie.util';
 
 interface AccessTokenPayload {
   sub: string;
@@ -28,13 +29,22 @@ export class JwtAuthGuard implements CanActivate {
     const request = context
       .switchToHttp()
       .getRequest<Request & { user?: AuthUser }>();
-    const authorization = request.headers.authorization;
 
-    if (!authorization || !authorization.startsWith('Bearer ')) {
-      throw new UnauthorizedException('Missing bearer token');
+    // Try cookie first, then fall back to Authorization header
+    const cookieToken = readAccessCookie(
+      request.cookies as Record<string, string>,
+    );
+    const authorization = request.headers.authorization;
+    const token =
+      cookieToken ??
+      (authorization?.startsWith('Bearer ')
+        ? authorization.slice('Bearer '.length)
+        : undefined);
+
+    if (!token) {
+      throw new UnauthorizedException('Missing authentication');
     }
 
-    const token = authorization.slice('Bearer '.length);
     const secret = this.configService.get<string>('JWT_ACCESS_SECRET');
 
     if (!secret) {

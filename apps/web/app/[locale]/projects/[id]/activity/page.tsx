@@ -1,29 +1,25 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
-import { ProjectPageShell } from '@/components/portal/project-page-shell';
-import { useProjectPageBase } from '@/components/portal/use-project-page-base';
+import { useProjectContext } from '@/components/portal/project-context';
 import { useTranslations } from '@/components/providers/translation-provider';
 import { AuditItem } from '@/lib/portal/types';
 
 export default function ProjectActivityPage() {
-  const params = useParams<{ locale: string; id: string }>();
-  const { locale, id } = params;
+  const { locale, projectId, project, error, setError, isAdmin, request } = useProjectContext();
   const { t } = useTranslations();
 
-  const { project, loading, error, setError, isAdmin, request } = useProjectPageBase(locale, id);
   const [events, setEvents] = useState<AuditItem[]>([]);
 
   const loadActivity = useCallback(async () => {
     try {
-      const data = await request<AuditItem[]>(`/audit/projects/${id}?limit=100`);
+      const data = await request<AuditItem[]>(`/audit/projects/${projectId}?limit=100`);
       setEvents(data);
       setError(null);
     } catch {
-      setError('PROJECT_LOAD_FAILED');
+      setError(t('project.activity.loadError'));
     }
-  }, [id, request, setError]);
+  }, [projectId, request, setError, t]);
 
   useEffect(() => {
     if (!project) {
@@ -32,24 +28,22 @@ export default function ProjectActivityPage() {
     void loadActivity();
   }, [loadActivity, project]);
 
-  if (loading || !project) {
-    return <p>{t('project.loading')}</p>;
-  }
+  if (!project) return null;
 
   return (
-    <ProjectPageShell locale={locale} project={project} isAdmin={isAdmin} activeTab="activity">
-      {error ? <p className="text-sm text-red-600">{t('project.error')}</p> : null}
+    <>
+      {error ? <p className="text-sm text-red-600">{error}</p> : null}
       <div className="space-y-2">
         {events.length === 0 ? <p>{t('activity.empty')}</p> : null}
         {events.map((event) => (
-          <div key={event.id} className="rounded-[var(--radius)] border border-[var(--color-border)] p-3">
-            <p className="text-sm font-medium text-[var(--color-foreground)]">{event.action}</p>
-            <p className="text-xs text-[var(--color-muted)]">
+          <div key={event.id} className="rounded-md border border-border p-3">
+            <p className="text-sm font-medium text-foreground">{event.action}</p>
+            <p className="text-xs text-muted-foreground">
               {event.resourceType} · {new Date(event.createdAt).toLocaleString(locale)}
             </p>
           </div>
         ))}
       </div>
-    </ProjectPageShell>
+    </>
   );
 }

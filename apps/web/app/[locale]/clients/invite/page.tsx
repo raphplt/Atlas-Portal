@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { ArrowLeft } from 'lucide-react';
 
 interface InvitationResponse {
   invitationUrl?: string;
@@ -86,7 +87,8 @@ export default function InviteClientPage() {
   return (
     <section className="mx-auto max-w-2xl space-y-6">
       <div className="space-y-2">
-        <Link href={`/${locale}/clients`} className="text-sm text-[var(--color-muted)] hover:underline">
+        <Link href={`/${locale}/clients`} className="text-sm text-muted-foreground hover:underline">
+        <ArrowLeft className="inline-block mr-1" />
           {t('clients.back')}
         </Link>
         <h1>{t('clients.inviteTitle')}</h1>
@@ -106,7 +108,7 @@ export default function InviteClientPage() {
             </div>
             <div>
               <Label htmlFor="invite-locale">{t('clients.form.locale')}</Label>
-              <select id="invite-locale" name="locale" className="input-base" defaultValue={locale}>
+              <select id="invite-locale" name="locale" className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-xs transition-colors focus-visible:border-ring focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 md:text-sm" defaultValue={locale}>
                 <option value="fr">FR</option>
                 <option value="en">EN</option>
               </select>
@@ -123,18 +125,18 @@ export default function InviteClientPage() {
               <Button type="submit" disabled={submitting}>
                 {t('clients.form.submit')}
               </Button>
-              <Link href={`/${locale}/clients`} className="btn-secondary">
-                {t('common.cancel')}
-              </Link>
+              <Button variant="outline" asChild>
+                <Link href={`/${locale}/clients`}>{t('common.cancel')}</Link>
+              </Button>
             </div>
           </form>
 
           {error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}
 
           {invitationUrl ? (
-            <div className="mt-4 rounded-[var(--radius)] border border-[var(--color-border)] bg-[var(--color-background-alt)] p-3">
-              <p className="text-xs text-[var(--color-muted)]">{t('clients.latestInvitation')}</p>
-              <p className="mt-1 break-all text-sm text-[var(--color-foreground)]">{invitationUrl}</p>
+            <div className="mt-4 rounded-md border border-border bg-secondary p-3">
+              <p className="text-xs text-muted-foreground">{t('clients.latestInvitation')}</p>
+              <p className="mt-1 break-all text-sm text-foreground">{invitationUrl}</p>
               <div className="mt-2 flex items-center gap-2">
                 <Button type="button" size="sm" variant="secondary" onClick={() => void copyLink()}>
                   {t('clients.copyLink')}

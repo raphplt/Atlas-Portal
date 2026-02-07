@@ -17,6 +17,7 @@ import { AuditService } from '../audit/audit.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ProjectsService } from '../projects/projects.service';
 import { CreateMessageDto } from './dto/create-message.dto';
+import { MessagesGateway } from './messages.gateway';
 import { MessageQueryDto } from './dto/message-query.dto';
 
 @Injectable()
@@ -33,6 +34,7 @@ export class MessagesService {
     private readonly projectsService: ProjectsService,
     private readonly auditService: AuditService,
     private readonly notificationsService: NotificationsService,
+    private readonly messagesGateway: MessagesGateway,
   ) {}
 
   async list(user: AuthUser, query: MessageQueryDto): Promise<MessageEntity[]> {
@@ -89,6 +91,15 @@ export class MessagesService {
     });
 
     const saved = await this.messagesRepository.save(message);
+
+    // Emit real-time event via WebSocket
+    this.messagesGateway.emitNewMessage(dto.projectId, {
+      id: saved.id,
+      authorId: saved.authorId,
+      body: saved.body,
+      ticketId: saved.ticketId,
+      createdAt: saved.createdAt.toISOString(),
+    });
 
     await this.auditService.create({
       workspaceId: user.workspaceId,

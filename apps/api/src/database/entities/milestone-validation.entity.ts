@@ -38,9 +38,39 @@ export class MilestoneValidationEntity {
   @Column({ type: 'enum', enum: MilestoneType })
   type!: MilestoneType;
 
+  /** Derived: true when both admin AND client have validated. */
   @Column({ type: 'boolean', default: false })
   validated!: boolean;
 
+  // --- Admin validation ---
+  @Column({ type: 'uuid', name: 'validated_by_admin_id', nullable: true })
+  validatedByAdminId?: string | null;
+
+  @ManyToOne(() => UserEntity, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'validated_by_admin_id' })
+  validatedByAdmin?: UserEntity | null;
+
+  @Column({ type: 'timestamptz', name: 'validated_by_admin_at', nullable: true })
+  validatedByAdminAt?: Date | null;
+
+  @Column({ type: 'varchar', length: 500, name: 'admin_comment', nullable: true })
+  adminComment?: string | null;
+
+  // --- Client validation ---
+  @Column({ type: 'uuid', name: 'validated_by_client_id', nullable: true })
+  validatedByClientId?: string | null;
+
+  @ManyToOne(() => UserEntity, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'validated_by_client_id' })
+  validatedByClient?: UserEntity | null;
+
+  @Column({ type: 'timestamptz', name: 'validated_by_client_at', nullable: true })
+  validatedByClientAt?: Date | null;
+
+  @Column({ type: 'varchar', length: 500, name: 'client_comment', nullable: true })
+  clientComment?: string | null;
+
+  // --- Legacy fields (kept for backward compatibility with existing data) ---
   @Column({ type: 'uuid', name: 'validated_by_id', nullable: true })
   validatedById?: string | null;
 
