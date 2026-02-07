@@ -1,0 +1,87 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@plugin "tailwindcss-motion";
+@plugin "tailwindcss-intersect";
+
+@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
+
+.bg-dot-pattern {
+  background-image: radial-gradient(rgba(15, 42, 68, 0.08) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+@theme {
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-heading: var(--font-inter-tight), ui-sans-serif, system-ui, sans-serif;
+  --color-primary: #0F2A44;
+  --color-primary-foreground: #FFFFFF;
+  --color-accent: #C47A2C;
+  --color-accent-foreground: #FFFFFF;
+  --color-accent-alt: #D6944B;
+  --color-accent-rgb: 196 122 44;
+  --color-background: #FFFFFF;
+  --color-background-alt: #F7F9FC;
+  --color-card: #FFFFFF;
+  --color-card-foreground: #0E141B;
+  --color-warning: #F59E0B;
+  --color-footer-bg: #0B1221;
+  --color-footer-fg: #F1F5F9;
+  --color-footer-muted: #94A3B8;
+  --color-foreground: #0E141B;
+  --color-muted: #5B6673;
+  --color-border: #E4E9F0;
+  --radius: 8px;
+  --radius-lg: 12px;
+  --radius-sm: 4px;
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --container: 1180px;
+  --container: 1180px;
+}
+
+[data-theme="dark"] {
+  --color-background: #0A0F1C;
+  --color-background-alt: #0F1629;
+  --color-card: #0F172A;
+  --color-card-foreground: #E5E7EB;
+  --color-primary: #8FB4D9;
+  --color-primary-foreground: #0A0F1C;
+  --color-foreground: #E5E7EB;
+  --color-muted: #9CA3AF;
+  --color-border: #1F2937;
+  --color-accent: #D08A3D;
+  --color-footer-bg: #050814;
+  --color-footer-fg: #CBD5E1;
+  --color-footer-muted: #64748B;
+}
+
+@layer base {
+  body {
+    @apply font-sans antialiased bg-(--color-background) text-(--color-foreground);
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-heading font-semibold tracking-tight text-(--color-foreground);
+  }
+
+  h1 {
+    @apply text-4xl md:text-5xl lg:text-[56px] font-bold leading-tight;
+  }
+
+  h2 {
+    @apply text-3xl md:text-4xl font-semibold;
+  }
+
+  h3 {
+    @apply text-xl md:text-2xl font-semibold;
+  }
+
+  p {
+    @apply leading-relaxed text-muted;
+  }
+}
