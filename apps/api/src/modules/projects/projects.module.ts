@@ -1,9 +1,16 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import {
+  AdminNoteEntity,
+  AuditEventEntity,
+  FileAssetEntity,
+  MessageEntity,
   MilestoneValidationEntity,
+  PaymentEntity,
   ProjectEntity,
+  ProjectTabReadEntity,
   TaskEntity,
+  TicketEntity,
   UserEntity,
 } from '../../database/entities';
 import { AuditModule } from '../audit/audit.module';
@@ -16,7 +23,14 @@ import { ProjectsService } from './projects.service';
       ProjectEntity,
       UserEntity,
       TaskEntity,
+      TicketEntity,
+      MessageEntity,
+      FileAssetEntity,
+      PaymentEntity,
+      AuditEventEntity,
+      AdminNoteEntity,
       MilestoneValidationEntity,
+      ProjectTabReadEntity,
     ]),
     AuditModule,
   ],

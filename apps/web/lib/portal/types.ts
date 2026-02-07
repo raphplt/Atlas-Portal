@@ -156,3 +156,19 @@ export interface DashboardPayload {
     completionRate: number;
   };
 }
+
+export interface ProjectTabNotificationCounts {
+  tasks: number;
+  tickets: number;
+  messages: number;
+  files: number;
+  payments: number;
+  milestones: number;
+  activity: number;
+  'admin-notes': number;
+}
+
+export interface ProjectTabNotificationsPayload {
+  counts: ProjectTabNotificationCounts;
+  total: number;
+}

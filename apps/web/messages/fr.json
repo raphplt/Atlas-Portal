@@ -171,6 +171,7 @@
   "project.nav.milestones": "Jalons",
   "project.nav.activity": "Activité",
   "project.nav.adminNotes": "Notes admin",
+  "project.nav.unreadCount": "{count} élément(s) non lu(s)",
 
   "project.tasks.description": "Kanban projet + demandes converties",
   "project.tasks.loadError": "Impossible de charger les tâches.",

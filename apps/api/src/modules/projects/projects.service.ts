@@ -1,16 +1,24 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { MoreThan, Repository } from 'typeorm';
 import { MilestoneType, TaskStatus, UserRole } from '../../common/enums';
 import type { AuthUser } from '../../common/types/auth-user.type';
 import {
+  AdminNoteEntity,
+  AuditEventEntity,
+  FileAssetEntity,
+  MessageEntity,
   MilestoneValidationEntity,
+  PaymentEntity,
   ProjectEntity,
+  ProjectTabReadEntity,
   TaskEntity,
+  TicketEntity,
   UserEntity,
 } from '../../database/entities';
 import { AuditService } from '../audit/audit.service';
@@ -18,6 +26,10 @@ import { CreateProjectDto } from './dto/create-project.dto';
 import { ProjectQueryDto } from './dto/project-query.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
 import { ValidateMilestoneDto } from './dto/validate-milestone.dto';
+import {
+  isProjectNotificationTab,
+  ProjectNotificationTab,
+} from './project-notification-tabs';
 
 @Injectable()
 export class ProjectsService {
@@ -28,8 +40,22 @@ export class ProjectsService {
     private readonly usersRepository: Repository<UserEntity>,
     @InjectRepository(TaskEntity)
     private readonly tasksRepository: Repository<TaskEntity>,
+    @InjectRepository(TicketEntity)
+    private readonly ticketsRepository: Repository<TicketEntity>,
+    @InjectRepository(MessageEntity)
+    private readonly messagesRepository: Repository<MessageEntity>,
+    @InjectRepository(FileAssetEntity)
+    private readonly filesRepository: Repository<FileAssetEntity>,
+    @InjectRepository(PaymentEntity)
+    private readonly paymentsRepository: Repository<PaymentEntity>,
+    @InjectRepository(AuditEventEntity)
+    private readonly auditEventsRepository: Repository<AuditEventEntity>,
+    @InjectRepository(AdminNoteEntity)
+    private readonly adminNotesRepository: Repository<AdminNoteEntity>,
     @InjectRepository(MilestoneValidationEntity)
     private readonly milestoneRepository: Repository<MilestoneValidationEntity>,
+    @InjectRepository(ProjectTabReadEntity)
+    private readonly projectTabReadRepository: Repository<ProjectTabReadEntity>,
     private readonly auditService: AuditService,
   ) {}
 
@@ -266,6 +292,160 @@ export class ProjectsService {
     };
   }
 
+  async getTabNotifications(user: AuthUser, projectId: string) {
+    await this.getById(user, projectId);
+
+    const tabReads = await this.projectTabReadRepository.find({
+      where: {
+        workspaceId: user.workspaceId,
+        projectId,
+        userId: user.id,
+      },
+    });
+
+    const lastReadByTab = new Map(
+      tabReads.map((tabRead) => [tabRead.tabKey, tabRead.lastReadAt]),
+    );
+    const getLastReadAt = (tab: ProjectNotificationTab) =>
+      lastReadByTab.get(tab) ?? new Date(0);
+
+    const [
+      tasksCount,
+      ticketsCount,
+      messagesCount,
+      filesCount,
+      paymentsCount,
+      milestonesCount,
+      activityCount,
+      adminNotesCount,
+    ] = await Promise.all([
+      this.tasksRepository.count({
+        where: {
+          workspaceId: user.workspaceId,
+          projectId,
+          updatedAt: MoreThan(getLastReadAt('tasks')),
+        },
+      }),
+      this.ticketsRepository.count({
+        where: {
+          workspaceId: user.workspaceId,
+          projectId,
+          isDeleted: false,
+          updatedAt: MoreThan(getLastReadAt('tickets')),
+        },
+      }),
+      this.messagesRepository
+        .createQueryBuilder('message')
+        .where('message.workspace_id = :workspaceId', {
+          workspaceId: user.workspaceId,
+        })
+        .andWhere('message.project_id = :projectId', { projectId })
+        .andWhere('message.created_at > :lastReadAt', {
+          lastReadAt: getLastReadAt('messages'),
+        })
+        .andWhere('message.author_id != :userId', { userId: user.id })
+        .getCount(),
+      this.filesRepository.count({
+        where: {
+          workspaceId: user.workspaceId,
+          projectId,
+          isDeleted: false,
+          isUploaded: true,
+          updatedAt: MoreThan(getLastReadAt('files')),
+        },
+      }),
+      this.paymentsRepository.count({
+        where: {
+          workspaceId: user.workspaceId,
+          projectId,
+          updatedAt: MoreThan(getLastReadAt('payments')),
+        },
+      }),
+      this.milestoneRepository.count({
+        where: {
+          workspaceId: user.workspaceId,
+          projectId,
+          updatedAt: MoreThan(getLastReadAt('milestones')),
+        },
+      }),
+      this.auditEventsRepository
+        .createQueryBuilder('event')
+        .where('event.workspace_id = :workspaceId', {
+          workspaceId: user.workspaceId,
+        })
+        .andWhere('event.project_id = :projectId', { projectId })
+        .andWhere('event.created_at > :lastReadAt', {
+          lastReadAt: getLastReadAt('activity'),
+        })
+        .andWhere('(event.actor_id IS NULL OR event.actor_id != :userId)', {
+          userId: user.id,
+        })
+        .getCount(),
+      user.role !== UserRole.ADMIN
+        ? Promise.resolve(0)
+        : this.adminNotesRepository
+            .createQueryBuilder('note')
+            .where('note.workspace_id = :workspaceId', {
+              workspaceId: user.workspaceId,
+            })
+            .andWhere('note.project_id = :projectId', { projectId })
+            .andWhere('note.created_at > :lastReadAt', {
+              lastReadAt: getLastReadAt('admin-notes'),
+            })
+            .andWhere('note.author_id != :userId', { userId: user.id })
+            .getCount(),
+    ]);
+
+    const counts: Record<ProjectNotificationTab, number> = {
+      tasks: tasksCount,
+      tickets: ticketsCount,
+      messages: messagesCount,
+      files: filesCount,
+      payments: paymentsCount,
+      milestones: milestonesCount,
+      activity: activityCount,
+      'admin-notes': adminNotesCount,
+    };
+
+    const total = Object.values(counts).reduce((sum, value) => sum + value, 0);
+
+    return { counts, total };
+  }
+
+  async markTabAsRead(user: AuthUser, projectId: string, tab: string) {
+    if (!isProjectNotificationTab(tab)) {
+      throw new BadRequestException('Invalid project tab');
+    }
+
+    await this.assertTabNotificationAccess(user, projectId, tab);
+
+    const now = new Date();
+    const existingRead = await this.projectTabReadRepository.findOne({
+      where: {
+        workspaceId: user.workspaceId,
+        projectId,
+        userId: user.id,
+        tabKey: tab,
+      },
+    });
+
+    if (existingRead) {
+      existingRead.lastReadAt = now;
+      await this.projectTabReadRepository.save(existingRead);
+    } else {
+      const createdRead = this.projectTabReadRepository.create({
+        workspaceId: user.workspaceId,
+        projectId,
+        userId: user.id,
+        tabKey: tab,
+        lastReadAt: now,
+      });
+      await this.projectTabReadRepository.save(createdRead);
+    }
+
+    return { success: true, tab, lastReadAt: now };
+  }
+
   async upsertMilestoneValidation(
     user: AuthUser,
     projectId: string,
@@ -356,5 +536,17 @@ export class ProjectsService {
         createdAt: 'ASC',
       },
     });
+  }
+
+  private async assertTabNotificationAccess(
+    user: AuthUser,
+    projectId: string,
+    tab: ProjectNotificationTab,
+  ): Promise<void> {
+    await this.getById(user, projectId);
+
+    if (tab === 'admin-notes' && user.role !== UserRole.ADMIN) {
+      throw new ForbiddenException('Admin notes are private to admins');
+    }
   }
 }

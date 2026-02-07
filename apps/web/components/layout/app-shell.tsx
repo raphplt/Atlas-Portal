@@ -1,6 +1,7 @@
 'use client';
 
 import { ReactNode } from 'react';
+import { usePathname } from 'next/navigation';
 import { AuthProvider, useAuth } from '@/components/providers/auth-provider';
 import { Locale } from '@/lib/i18n/config';
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
@@ -14,7 +15,13 @@ interface ShellBodyProps {
 
 function ShellBody({ children, locale }: ShellBodyProps) {
   const { session } = useAuth();
+  const pathname = usePathname();
   const hasUserSession = !!session?.user?.role;
+  const isLoginPage = pathname?.endsWith('/login');
+
+  if (isLoginPage) {
+    return <main className="min-h-svh">{children}</main>;
+  }
 
   return (
     <SidebarProvider>

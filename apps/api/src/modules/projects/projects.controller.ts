@@ -46,6 +46,11 @@ export class ProjectsController {
     return this.projectsService.listMilestones(user, projectId);
   }
 
+  @Get(':id/tab-notifications')
+  tabNotifications(@CurrentUser() user: AuthUser, @Param('id') projectId: string) {
+    return this.projectsService.getTabNotifications(user, projectId);
+  }
+
   @Post()
   @Roles(UserRole.ADMIN)
   create(@CurrentUser() user: AuthUser, @Body() dto: CreateProjectDto) {
@@ -75,5 +80,14 @@ export class ProjectsController {
     @Body() dto: ValidateMilestoneDto,
   ) {
     return this.projectsService.upsertMilestoneValidation(user, projectId, dto);
+  }
+
+  @Post(':id/tab-notifications/:tab/read')
+  markTabAsRead(
+    @CurrentUser() user: AuthUser,
+    @Param('id') projectId: string,
+    @Param('tab') tab: string,
+  ) {
+    return this.projectsService.markTabAsRead(user, projectId, tab);
   }
 }

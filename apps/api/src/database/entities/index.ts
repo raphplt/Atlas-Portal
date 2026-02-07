@@ -6,6 +6,7 @@ import { MessageEntity } from './message.entity';
 import { MilestoneValidationEntity } from './milestone-validation.entity';
 import { PaymentEntity } from './payment.entity';
 import { ProjectEntity } from './project.entity';
+import { ProjectTabReadEntity } from './project-tab-read.entity';
 import { RefreshTokenEntity } from './refresh-token.entity';
 import { StripeEventEntity } from './stripe-event.entity';
 import { TaskEntity } from './task.entity';
@@ -25,6 +26,7 @@ export const ENTITIES = [
   PaymentEntity,
   AuditEventEntity,
   AdminNoteEntity,
+  ProjectTabReadEntity,
   MilestoneValidationEntity,
   StripeEventEntity,
   ClientInvitationEntity,
@@ -39,6 +41,7 @@ export {
   MilestoneValidationEntity,
   PaymentEntity,
   ProjectEntity,
+  ProjectTabReadEntity,
   RefreshTokenEntity,
   StripeEventEntity,
   TaskEntity,

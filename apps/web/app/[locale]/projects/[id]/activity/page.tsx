@@ -6,7 +6,7 @@ import { useTranslations } from '@/components/providers/translation-provider';
 import { AuditItem } from '@/lib/portal/types';
 
 export default function ProjectActivityPage() {
-  const { locale, projectId, project, error, setError, isAdmin, request } = useProjectContext();
+  const { locale, projectId, project, error, setError, request } = useProjectContext();
   const { t } = useTranslations();
 
   const [events, setEvents] = useState<AuditItem[]>([]);

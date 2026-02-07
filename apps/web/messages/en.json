@@ -171,6 +171,7 @@
   "project.nav.milestones": "Milestones",
   "project.nav.activity": "Activity",
   "project.nav.adminNotes": "Admin notes",
+  "project.nav.unreadCount": "{count} unread item(s)",
 
   "project.tasks.description": "Project kanban and ticket-derived work",
   "project.tasks.loadError": "Unable to load tasks.",
