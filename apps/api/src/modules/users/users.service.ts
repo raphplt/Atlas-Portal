@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { UserRole } from '../../common/enums';
 import { UserEntity } from '../../database/entities';
 
 @Injectable()
@@ -44,6 +45,40 @@ export class UsersService {
   async listWorkspaceUsers(workspaceId: string): Promise<UserEntity[]> {
     return this.usersRepository.find({
       where: { workspaceId, isActive: true },
+    });
+  }
+
+  async listWorkspaceClients(
+    workspaceId: string,
+    options: { limit: number; search?: string },
+  ): Promise<UserEntity[]> {
+    const qb = this.usersRepository
+      .createQueryBuilder('user')
+      .where('user.workspace_id = :workspaceId', { workspaceId })
+      .andWhere('user.role = :role', { role: UserRole.CLIENT })
+      .andWhere('user.isActive = true');
+
+    if (options.search) {
+      qb.andWhere(
+        '(user.email ILIKE :search OR user."firstName" ILIKE :search OR user."lastName" ILIKE :search)',
+        {
+          search: `%${options.search}%`,
+        },
+      );
+    }
+
+    return qb.orderBy('user.createdAt', 'DESC').limit(options.limit).getMany();
+  }
+
+  async findActiveByEmail(email: string): Promise<UserEntity[]> {
+    return this.usersRepository.find({
+      where: {
+        email: email.toLowerCase(),
+        isActive: true,
+      },
+      order: {
+        createdAt: 'DESC',
+      },
     });
   }
 }

@@ -53,14 +53,10 @@ export class AuthService {
 
   async registerAdmin(dto: RegisterAdminDto) {
     const normalizedEmail = dto.adminEmail.toLowerCase();
-    const slug = dto.workspaceSlug.toLowerCase();
-
-    const existingWorkspace = await this.workspaceRepository.findOne({
-      where: { slug },
-    });
-    if (existingWorkspace) {
-      throw new BadRequestException('Workspace slug already used');
-    }
+    const requestedSlug = dto.workspaceSlug
+      ? dto.workspaceSlug.toLowerCase()
+      : this.slugifyWorkspaceName(dto.workspaceName);
+    const slug = await this.generateAvailableWorkspaceSlug(requestedSlug);
 
     const passwordHash = await argon2.hash(dto.password);
 
@@ -84,32 +80,41 @@ export class AuthService {
     });
 
     const savedUser = await this.userRepository.save(user);
-    const tokens = await this.issueTokens(savedUser);
-
-    return {
-      workspace: {
-        id: savedWorkspace.id,
-        name: savedWorkspace.name,
-        slug: savedWorkspace.slug,
-      },
-      user: this.serializeUser(savedUser),
-      ...tokens,
-    };
+    return this.createSessionForUser(savedUser, savedWorkspace);
   }
 
   async login(dto: LoginDto) {
-    const workspace = await this.workspacesService.findBySlug(
-      dto.workspaceSlug.toLowerCase(),
-    );
+    const normalizedEmail = dto.email.toLowerCase();
+    let workspace: WorkspaceEntity | null = null;
+    let user: UserEntity | null = null;
 
-    if (!workspace) {
-      throw new UnauthorizedException('Invalid credentials');
+    if (dto.workspaceSlug) {
+      workspace = await this.workspacesService.findBySlug(
+        dto.workspaceSlug.toLowerCase(),
+      );
+
+      if (!workspace) {
+        throw new UnauthorizedException('Invalid credentials');
+      }
+
+      user = await this.usersService.findByWorkspaceAndEmail(
+        workspace.id,
+        normalizedEmail,
+      );
+    } else {
+      const users = await this.usersService.findActiveByEmail(normalizedEmail);
+      if (users.length === 0) {
+        throw new UnauthorizedException('Invalid credentials');
+      }
+      if (users.length > 1) {
+        throw new BadRequestException(
+          'Multiple workspaces found for this email. Use a workspace-specific login link.',
+        );
+      }
+
+      user = users[0];
+      workspace = await this.workspacesService.findByIdOrFail(user.workspaceId);
     }
-
-    const user = await this.usersService.findByWorkspaceAndEmail(
-      workspace.id,
-      dto.email.toLowerCase(),
-    );
 
     if (!user || !user.isActive) {
       throw new UnauthorizedException('Invalid credentials');
@@ -120,17 +125,7 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    const tokens = await this.issueTokens(user);
-
-    return {
-      workspace: {
-        id: workspace.id,
-        name: workspace.name,
-        slug: workspace.slug,
-      },
-      user: this.serializeUser(user),
-      ...tokens,
-    };
+    return this.createSessionForUser(user, workspace);
   }
 
   async refresh(dto: RefreshTokenDto) {
@@ -242,6 +237,26 @@ export class AuthService {
     return this.serializeUser(saved);
   }
 
+  async createSessionForUser(
+    user: UserEntity,
+    workspaceOverride?: WorkspaceEntity,
+  ) {
+    const workspace =
+      workspaceOverride ??
+      (await this.workspacesService.findByIdOrFail(user.workspaceId));
+    const tokens = await this.issueTokens(user);
+
+    return {
+      workspace: {
+        id: workspace.id,
+        name: workspace.name,
+        slug: workspace.slug,
+      },
+      user: this.serializeUser(user),
+      ...tokens,
+    };
+  }
+
   private async issueTokens(
     user: UserEntity,
     previousTokenId?: string,
@@ -344,5 +359,33 @@ export class AuthService {
       default:
         return 15 * 60;
     }
+  }
+
+  private slugifyWorkspaceName(value: string): string {
+    return value
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 120);
+  }
+
+  private async generateAvailableWorkspaceSlug(seed: string): Promise<string> {
+    const baseSlug = seed.length >= 3 ? seed : 'workspace';
+
+    for (let index = 0; index < 100; index += 1) {
+      const candidate = index === 0 ? baseSlug : `${baseSlug}-${index + 1}`;
+      const existingWorkspace = await this.workspaceRepository.findOne({
+        where: { slug: candidate },
+      });
+      if (!existingWorkspace) {
+        return candidate;
+      }
+    }
+
+    throw new BadRequestException(
+      'Unable to generate a unique workspace identifier',
+    );
   }
 }

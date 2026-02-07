@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -40,6 +41,11 @@ export class ProjectsController {
     return this.projectsService.getDashboard(user, projectId);
   }
 
+  @Get(':id/milestones')
+  milestones(@CurrentUser() user: AuthUser, @Param('id') projectId: string) {
+    return this.projectsService.listMilestones(user, projectId);
+  }
+
   @Post()
   @Roles(UserRole.ADMIN)
   create(@CurrentUser() user: AuthUser, @Body() dto: CreateProjectDto) {
@@ -54,6 +60,12 @@ export class ProjectsController {
     @Body() dto: UpdateProjectDto,
   ) {
     return this.projectsService.update(user, projectId, dto);
+  }
+
+  @Delete(':id')
+  @Roles(UserRole.ADMIN)
+  remove(@CurrentUser() user: AuthUser, @Param('id') projectId: string) {
+    return this.projectsService.remove(user, projectId);
   }
 
   @Post(':id/milestones/validate')

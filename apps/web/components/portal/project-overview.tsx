@@ -31,10 +31,10 @@ export function ProjectOverview({ dashboard }: ProjectOverviewProps) {
         <CardTitle>{dashboard.project.name}</CardTitle>
         <CardDescription>{t('project.overview.description')}</CardDescription>
       </CardHeader>
-      <CardContent className="grid gap-4 md:grid-cols-4">
+      <CardContent className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         <div className="space-y-1">
           <p className="text-xs uppercase tracking-wide text-[var(--color-muted)]">{t('project.status')}</p>
-          <Badge>{dashboard.project.status}</Badge>
+          <Badge>{t(`status.project.${dashboard.project.status}`)}</Badge>
         </div>
         <div className="space-y-1">
           <p className="text-xs uppercase tracking-wide text-[var(--color-muted)]">{t('project.progress')}</p>
@@ -49,6 +49,10 @@ export function ProjectOverview({ dashboard }: ProjectOverviewProps) {
         <div className="space-y-1">
           <p className="text-xs uppercase tracking-wide text-[var(--color-muted)]">{t('project.tasks.blocked')}</p>
           <p className="text-lg font-semibold text-[var(--color-foreground)]">{dashboard.summary.blockedTasks}</p>
+        </div>
+        <div className="space-y-1">
+          <p className="text-xs uppercase tracking-wide text-[var(--color-muted)]">{t('project.tasks.completionRate')}</p>
+          <p className="text-lg font-semibold text-[var(--color-foreground)]">{dashboard.summary.completionRate}%</p>
         </div>
       </CardContent>
     </Card>

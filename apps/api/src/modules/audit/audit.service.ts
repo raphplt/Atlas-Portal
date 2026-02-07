@@ -1,8 +1,14 @@
-import { Injectable } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AuditEventEntity } from '../../database/entities';
 import type { AuthUser } from '../../common/types/auth-user.type';
+import { ProjectEntity } from '../../database/entities/project.entity';
+import { UserRole } from '../../common/enums';
 
 interface AuditInput {
   workspaceId: string;
@@ -19,6 +25,8 @@ export class AuditService {
   constructor(
     @InjectRepository(AuditEventEntity)
     private readonly auditRepository: Repository<AuditEventEntity>,
+    @InjectRepository(ProjectEntity)
+    private readonly projectsRepository: Repository<ProjectEntity>,
   ) {}
 
   async create(input: AuditInput): Promise<AuditEventEntity> {
@@ -40,6 +48,18 @@ export class AuditService {
     projectId: string,
     limit: number,
   ): Promise<AuditEventEntity[]> {
+    const project = await this.projectsRepository.findOne({
+      where: { id: projectId },
+    });
+
+    if (!project || project.workspaceId !== user.workspaceId) {
+      throw new NotFoundException('Project not found');
+    }
+
+    if (user.role === UserRole.CLIENT && project.clientId !== user.id) {
+      throw new ForbiddenException('Project access denied');
+    }
+
     return this.auditRepository
       .createQueryBuilder('event')
       .where('event.workspace_id = :workspaceId', {

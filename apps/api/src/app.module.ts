@@ -22,6 +22,7 @@ import { ProjectsModule } from './modules/projects/projects.module';
 import { StorageModule } from './modules/storage/storage.module';
 import { TasksModule } from './modules/tasks/tasks.module';
 import { TicketsModule } from './modules/tickets/tickets.module';
+import { InvitationsModule } from './modules/invitations/invitations.module';
 import { UsersModule } from './modules/users/users.module';
 import { WorkspacesModule } from './modules/workspaces/workspaces.module';
 
@@ -38,10 +39,14 @@ import { WorkspacesModule } from './modules/workspaces/workspaces.module';
         limit: 120,
       },
     ]),
-    JwtModule.register({}),
+    JwtModule.register({
+      global: true,
+    }),
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => {
+        const isDevelopment =
+          configService.get<string>('NODE_ENV') === 'development';
         const sslEnabled = configService.get<string>('DATABASE_SSL') === 'true';
 
         return {
@@ -53,8 +58,8 @@ import { WorkspacesModule } from './modules/workspaces/workspaces.module';
           database: configService.get<string>('DATABASE_NAME'),
           ssl: sslEnabled ? { rejectUnauthorized: false } : false,
           entities: ENTITIES,
-          synchronize: false,
-          logging: configService.get<string>('NODE_ENV') === 'development',
+          synchronize: isDevelopment,
+          logging: isDevelopment,
         };
       },
     }),
@@ -67,6 +72,7 @@ import { WorkspacesModule } from './modules/workspaces/workspaces.module';
     ProjectsModule,
     TasksModule,
     TicketsModule,
+    InvitationsModule,
     MessagesModule,
     FilesModule,
     PaymentsModule,

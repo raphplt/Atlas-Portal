@@ -1,11 +1,11 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { AuditEventEntity } from '../../database/entities';
+import { AuditEventEntity, ProjectEntity } from '../../database/entities';
 import { AuditController } from './audit.controller';
 import { AuditService } from './audit.service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([AuditEventEntity])],
+  imports: [TypeOrmModule.forFeature([AuditEventEntity, ProjectEntity])],
   providers: [AuditService],
   controllers: [AuditController],
   exports: [AuditService],

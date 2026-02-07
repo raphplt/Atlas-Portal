@@ -7,7 +7,6 @@ import { readStoredSession, writeStoredSession } from '@/lib/auth/storage';
 import { SessionState } from '@/lib/auth/types';
 
 interface LoginPayload {
-  workspaceSlug: string;
   email: string;
   password: string;
 }
@@ -16,6 +15,7 @@ interface AuthContextValue {
   session: SessionState | null;
   ready: boolean;
   login: (payload: LoginPayload) => Promise<void>;
+  setSession: (session: SessionState | null) => void;
   logout: () => Promise<void>;
   request: <T>(path: string, options?: { method?: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE'; body?: unknown }) => Promise<T>;
 }
@@ -73,10 +73,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       session,
       ready,
       login,
+      setSession: updateSession,
       logout,
       request,
     }),
-    [login, logout, ready, request, session],
+    [login, logout, ready, request, session, updateSession],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -159,6 +159,30 @@ export class ProjectsService {
     return updated;
   }
 
+  async remove(user: AuthUser, projectId: string): Promise<{ success: true }> {
+    const project = await this.getById(user, projectId);
+
+    if (user.role !== UserRole.ADMIN) {
+      throw new ForbiddenException('Only admin can delete project');
+    }
+
+    await this.projectsRepository.remove(project);
+
+    await this.auditService.create({
+      workspaceId: user.workspaceId,
+      actorId: user.id,
+      action: 'PROJECT_DELETED',
+      resourceType: 'Project',
+      resourceId: projectId,
+      metadata: {
+        name: project.name,
+        clientId: project.clientId,
+      },
+    });
+
+    return { success: true };
+  }
+
   async getDashboard(user: AuthUser, projectId: string) {
     const project = await this.getById(user, projectId);
 
@@ -245,5 +269,22 @@ export class ProjectsService {
     });
 
     return updated;
+  }
+
+  async listMilestones(
+    user: AuthUser,
+    projectId: string,
+  ): Promise<MilestoneValidationEntity[]> {
+    await this.getById(user, projectId);
+
+    return this.milestoneRepository.find({
+      where: {
+        workspaceId: user.workspaceId,
+        projectId,
+      },
+      order: {
+        createdAt: 'ASC',
+      },
+    });
   }
 }

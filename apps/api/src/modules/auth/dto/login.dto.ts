@@ -1,5 +1,6 @@
 import {
   IsEmail,
+  IsOptional,
   IsString,
   Length,
   MaxLength,
@@ -7,9 +8,10 @@ import {
 } from 'class-validator';
 
 export class LoginDto {
+  @IsOptional()
   @IsString()
   @Length(3, 120)
-  workspaceSlug!: string;
+  workspaceSlug?: string;
 
   @IsEmail()
   email!: string;

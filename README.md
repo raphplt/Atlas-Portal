@@ -31,6 +31,8 @@ cp apps/web/.env.example apps/web/.env.local
 docker compose up -d --build
 ```
 
+If you change `POSTGRES_PORT` in `.env`, keep `DATABASE_PORT` aligned in `apps/api/.env`.
+
 4. Start API + frontend with Turbo:
 
 ```bash
@@ -41,12 +43,36 @@ pnpm dev
 - API: `http://localhost:3001`
 - Health: `http://localhost:3001/health`
 
+## Functional happy path (V1)
+
+1. Create first admin:
+
+```bash
+curl -X POST http://localhost:3001/auth/register-admin \
+  -H "Content-Type: application/json" \
+  -d '{
+    "workspaceName": "Atlas Portal",
+    "adminEmail": "admin@atlas.local",
+    "password": "SuperMotDePasseTresLong123!",
+    "firstName": "Raphael",
+    "lastName": "Plassart",
+    "locale": "fr"
+  }'
+```
+
+2. Login on web: `http://localhost:3000/fr/login` (email + password, no workspace slug field).
+3. From `Clients`, send invitation links.
+4. Client accepts invitation from `/<locale>/accept-invitation?token=...`.
+5. Admin creates projects, tasks, payment requests; client creates tickets/messages and pays Stripe checkout.
+
 ## Database migrations
 
 ```bash
 pnpm --filter api migration:run
 pnpm --filter api migration:revert
 ```
+
+In development, TypeORM `synchronize` is enabled automatically when `NODE_ENV=development`.
 
 ## Quality checks
 

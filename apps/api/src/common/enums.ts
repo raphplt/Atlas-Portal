@@ -57,3 +57,10 @@ export enum MilestoneType {
   CONTENT = 'CONTENT',
   DELIVERY = 'DELIVERY',
 }
+
+export enum ClientInvitationStatus {
+  PENDING = 'PENDING',
+  ACCEPTED = 'ACCEPTED',
+  REVOKED = 'REVOKED',
+  EXPIRED = 'EXPIRED',
+}

@@ -21,7 +21,10 @@ function ShellBody({ children, locale }: ShellBodyProps) {
 
   const navItems = [
     { href: `/${locale}/dashboard`, label: t('nav.dashboard') },
-    { href: `/${locale}/dashboard`, label: t('nav.projects') },
+    { href: `/${locale}/projects`, label: t('nav.projects') },
+    ...(session?.user.role === 'ADMIN'
+      ? [{ href: `/${locale}/clients`, label: t('nav.clients') }]
+      : []),
   ];
 
   const alternatePath = pathname
@@ -40,7 +43,7 @@ function ShellBody({ children, locale }: ShellBodyProps) {
               <Link
                 key={item.href + item.label}
                 href={item.href}
-                className={`rounded-[var(--radius)] px-3 py-2 text-sm ${pathname === item.href ? 'bg-[var(--color-background-alt)] text-[var(--color-foreground)]' : 'text-[var(--color-muted)]'}`}
+                className={`rounded-[var(--radius)] px-3 py-2 text-sm ${pathname?.startsWith(item.href) ? 'bg-[var(--color-background-alt)] text-[var(--color-foreground)]' : 'text-[var(--color-muted)]'}`}
               >
                 {item.label}
               </Link>

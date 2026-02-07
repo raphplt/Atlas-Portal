@@ -32,6 +32,12 @@ const envSchema = z.object({
   BREVO_API_URL: z.string().url().optional(),
   BREVO_SANDBOX: z.enum(['true', 'false']).default('false'),
   EMAIL_SENDER: z.string().email().optional(),
+  CLIENT_INVITATION_EXPIRY_DAYS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .max(30)
+    .default(7),
 });
 
 export type EnvVars = z.infer<typeof envSchema>;

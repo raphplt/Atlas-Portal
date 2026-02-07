@@ -22,7 +22,6 @@ export default function LoginPage() {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
 
-    const workspaceSlug = String(formData.get('workspaceSlug') ?? '');
     const email = String(formData.get('email') ?? '');
     const password = String(formData.get('password') ?? '');
 
@@ -30,7 +29,7 @@ export default function LoginPage() {
     setError(null);
 
     try {
-      await login({ workspaceSlug, email, password });
+      await login({ email, password });
       router.push(`/${locale}/dashboard`);
     } catch {
       setError(t('auth.error'));
@@ -48,10 +47,6 @@ export default function LoginPage() {
         </CardHeader>
         <CardContent>
           <form className="space-y-4" onSubmit={(event) => void handleSubmit(event)}>
-            <div>
-              <Label htmlFor="workspaceSlug">{t('auth.workspaceSlug')}</Label>
-              <Input id="workspaceSlug" name="workspaceSlug" autoComplete="organization" required />
-            </div>
             <div>
               <Label htmlFor="email">{t('auth.email')}</Label>
               <Input id="email" name="email" type="email" autoComplete="email" required />

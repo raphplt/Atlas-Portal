@@ -8,6 +8,7 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { Request } from 'express';
 import { UserRole } from '../enums';
+import type { AuthUser } from '../types/auth-user.type';
 
 interface AccessTokenPayload {
   sub: string;
@@ -26,7 +27,7 @@ export class JwtAuthGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context
       .switchToHttp()
-      .getRequest<Request & { user?: AccessTokenPayload }>();
+      .getRequest<Request & { user?: AuthUser }>();
     const authorization = request.headers.authorization;
 
     if (!authorization || !authorization.startsWith('Bearer ')) {
@@ -45,7 +46,12 @@ export class JwtAuthGuard implements CanActivate {
         token,
         { secret },
       );
-      request.user = payload;
+      request.user = {
+        id: payload.sub,
+        workspaceId: payload.workspaceId,
+        role: payload.role,
+        email: payload.email,
+      };
       return true;
     } catch {
       throw new UnauthorizedException('Invalid or expired token');

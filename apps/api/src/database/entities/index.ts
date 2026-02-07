@@ -1,5 +1,6 @@
 import { AdminNoteEntity } from './admin-note.entity';
 import { AuditEventEntity } from './audit-event.entity';
+import { ClientInvitationEntity } from './client-invitation.entity';
 import { FileAssetEntity } from './file-asset.entity';
 import { MessageEntity } from './message.entity';
 import { MilestoneValidationEntity } from './milestone-validation.entity';
@@ -26,11 +27,13 @@ export const ENTITIES = [
   AdminNoteEntity,
   MilestoneValidationEntity,
   StripeEventEntity,
+  ClientInvitationEntity,
 ];
 
 export {
   AdminNoteEntity,
   AuditEventEntity,
+  ClientInvitationEntity,
   FileAssetEntity,
   MessageEntity,
   MilestoneValidationEntity,
