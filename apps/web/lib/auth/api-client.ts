@@ -9,6 +9,28 @@ interface RequestOptions {
   updateSession: (session: SessionState | null) => void;
 }
 
+async function parseResponseBody<T>(response: Response): Promise<T> {
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
+  const contentType = response.headers.get('content-type') ?? '';
+  if (contentType.includes('application/json')) {
+    return response.json() as Promise<T>;
+  }
+
+  const text = await response.text();
+  if (!text) {
+    return undefined as T;
+  }
+
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    return text as T;
+  }
+}
+
 async function doFetch(path: string, options: RequestOptions, accessToken: string) {
   return fetch(`${API_BASE_URL}${path}`, {
     method: options.method ?? 'GET',
@@ -59,11 +81,13 @@ export async function apiRequest<T>(path: string, options: RequestOptions): Prom
   }
 
   if (!response.ok) {
-    const payload = (await response.json().catch(() => ({}))) as { message?: string };
+    const payload = (await parseResponseBody<{ message?: string }>(response).catch(() => ({}))) as {
+      message?: string;
+    };
     throw new Error(payload.message ?? `Request failed with status ${response.status}`);
   }
 
-  return response.json() as Promise<T>;
+  return parseResponseBody<T>(response);
 }
 
 export async function anonymousRequest<T>(path: string, method: 'POST' | 'GET', body?: unknown): Promise<T> {
@@ -76,9 +100,11 @@ export async function anonymousRequest<T>(path: string, method: 'POST' | 'GET', 
   });
 
   if (!response.ok) {
-    const payload = (await response.json().catch(() => ({}))) as { message?: string };
+    const payload = (await parseResponseBody<{ message?: string }>(response).catch(() => ({}))) as {
+      message?: string;
+    };
     throw new Error(payload.message ?? `Request failed with status ${response.status}`);
   }
 
-  return response.json() as Promise<T>;
+  return parseResponseBody<T>(response);
 }
