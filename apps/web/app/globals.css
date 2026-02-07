@@ -1,0 +1,143 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@plugin "tailwindcss-motion";
+@plugin "tailwindcss-intersect";
+
+@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
+
+.bg-dot-pattern {
+  background-image: radial-gradient(rgba(15, 42, 68, 0.08) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+@theme {
+  /* Typography */
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-heading: var(--font-inter-tight), ui-sans-serif, system-ui, sans-serif;
+
+  /* Colors */
+  --color-primary: #0F2A44;
+  --color-primary-foreground: #FFFFFF;
+
+  --color-accent: #C47A2C;
+  --color-accent-foreground: #FFFFFF;
+  --color-accent-alt: #D6944B;
+  --color-accent-rgb: 196 122 44;
+
+  --color-background: #FFFFFF;
+  --color-background-alt: #F7F9FC;
+
+  --color-card: #FFFFFF;
+  --color-card-foreground: #0E141B;
+
+  --color-warning: #F59E0B;   /* Stars / Alerts */
+  --color-footer-bg: #0B1221;
+  --color-footer-fg: #F1F5F9;
+  --color-footer-muted: #94A3B8;
+
+  --color-foreground: #0E141B; /* Main text */
+  --color-muted: #5B6673;      /* Secondary text */
+  --color-border: #E4E9F0;
+
+  /* UI Tokens */
+  --radius: 8px; /* Square-ish buttons */
+  --radius-lg: 12px; /* Cards */
+  --radius-sm: 4px;
+
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --container: 1180px;
+  --container: 1180px;
+}
+
+[data-theme="dark"] {
+  /* Backgrounds */
+  --color-background: #0A0F1C;
+  /* Encre profonde */
+  --color-background-alt: #0F1629;
+  /* Section contrastée */
+
+  /* Cards */
+  --color-card: #0F172A;
+  /* Plein, pas glass */
+  --color-card-foreground: #E5E7EB;
+
+  /* Primary = version dark de ton bleu brand */
+  --color-primary: #8FB4D9;
+  /* Bleu désaturé premium */
+  --color-primary-foreground: #0A0F1C;
+
+  /* Text */
+  --color-foreground: #E5E7EB;
+  --color-muted: #9CA3AF;
+  --color-border: #1F2937;
+
+  /* Accent = cuivre assombri */
+  --color-accent: #D08A3D;
+
+  /* Footer */
+  --color-footer-bg: #050814;
+  --color-footer-fg: #CBD5E1;
+  --color-footer-muted: #64748B;
+}
+
+/* Base Styles */
+@layer base {
+  body {
+    @apply font-sans antialiased bg-[var(--color-background)] text-[var(--color-foreground)];
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-heading font-semibold tracking-tight text-[var(--color-foreground)];
+  }
+
+  h1 { @apply text-4xl md:text-5xl lg:text-[56px] font-bold leading-tight; }
+  h2 { @apply text-3xl md:text-4xl font-semibold; }
+  h3 { @apply text-xl md:text-2xl font-semibold; }
+
+  p { @apply leading-relaxed text-[var(--color-muted)]; }
+}
+
+/* Utilities */
+@layer utilities {
+  .section-padding {
+    @apply py-16 md:py-24;
+  }
+
+  .container-width {
+    @apply max-w-[var(--container)] mx-auto px-4 md:px-6;
+  }
+
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+/* Components */
+@layer components {
+  .btn-primary {
+    @apply bg-[var(--color-primary)] text-[var(--color-primary-foreground)] px-6 py-3 rounded-[var(--radius)] font-semibold hover:opacity-90 transition-all duration-200 shadow-sm flex items-center justify-center gap-2;
+  }
+
+  .btn-secondary {
+    @apply bg-transparent border border-[var(--color-primary)] text-[var(--color-primary)] px-6 py-3 rounded-[var(--radius)] font-semibold hover:bg-[var(--color-background-alt)] transition-colors duration-200 flex items-center justify-center gap-2;
+  }
+
+  .card-base {
+    @apply bg-[var(--color-card)] border border-[var(--color-border)] rounded-[var(--radius-lg)] p-6 md:p-8 backdrop-blur-sm;
+  }
+
+  /* Form Elements */
+  .input-base {
+    @apply w-full px-4 py-3 rounded-[var(--radius)] border border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/20 focus:border-[var(--color-primary)] transition-all;
+  }
+
+  .label-base {
+    @apply block text-sm font-medium text-[var(--color-foreground)] mb-2;
+  }
+}
+
+/* Specific Section Overrides */
+.hero-gradient {
+    background-color: var(--color-background-alt);
+}
