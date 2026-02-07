@@ -8,7 +8,7 @@ import {
   Res,
   UseGuards,
 } from '@nestjs/common';
-import * as express from 'express';
+import type { Response } from 'express';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { UserRole } from '../../common/enums';
@@ -59,7 +59,7 @@ export class InvitationsController {
   async acceptPublic(
     @Param('token') token: string,
     @Body() dto: AcceptInvitationDto,
-    @Res({ passthrough: true }) res: express.Response,
+    @Res({ passthrough: true }) res: Response,
   ) {
     const result = await this.invitationsService.acceptPublicInvitation(
       token,

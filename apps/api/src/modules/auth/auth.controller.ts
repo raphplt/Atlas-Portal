@@ -1,6 +1,6 @@
 import { Body, Controller, Post, Req, Res, UseGuards } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
-import * as express from 'express';
+import type { Request, Response } from 'express';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { UserRole } from '../../common/enums';
@@ -25,7 +25,7 @@ export class AuthController {
   @Post('register-admin')
   async registerAdmin(
     @Body() dto: RegisterAdminDto,
-    @Res({ passthrough: true }) res: express.Response,
+    @Res({ passthrough: true }) res: Response,
   ) {
     const result = await this.authService.registerAdmin(dto);
     setAuthCookies(
@@ -43,7 +43,7 @@ export class AuthController {
   @Throttle({ default: { limit: 6, ttl: 60_000 } })
   async login(
     @Body() dto: LoginDto,
-    @Res({ passthrough: true }) res: express.Response,
+    @Res({ passthrough: true }) res: Response,
   ) {
     const result = await this.authService.login(dto);
     setAuthCookies(
@@ -60,8 +60,8 @@ export class AuthController {
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post('refresh')
   async refresh(
-    @Req() req: express.Request,
-    @Res({ passthrough: true }) res: express.Response,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
   ) {
     const cookieToken = readRefreshCookie(
       req.cookies as Record<string, string>,
@@ -85,8 +85,8 @@ export class AuthController {
 
   @Post('logout')
   async logout(
-    @Req() req: express.Request,
-    @Res({ passthrough: true }) res: express.Response,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
   ) {
     const cookieToken = readRefreshCookie(
       req.cookies as Record<string, string>,
