@@ -1,8 +1,6 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class AddDoubleValidationMilestones1738950000000
-  implements MigrationInterface
-{
+export class AddDoubleValidationMilestones1738950000000 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`
       ALTER TABLE milestone_validations

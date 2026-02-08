@@ -45,9 +45,7 @@ export class MessagesGateway
   async handleConnection(client: AuthenticatedSocket): Promise<void> {
     try {
       // Try cookie first, then query token
-      const cookies = this.parseCookies(
-        client.handshake.headers.cookie ?? '',
-      );
+      const cookies = this.parseCookies(client.handshake.headers.cookie ?? '');
       const token =
         cookies['atlas.access'] ??
         (client.handshake.auth?.token as string | undefined);

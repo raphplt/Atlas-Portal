@@ -48,6 +48,30 @@ export class ProjectEntity {
   @Column({ type: 'varchar', length: 180 })
   name!: string;
 
+  @Column({
+    type: 'varchar',
+    length: 180,
+    name: 'client_company',
+    nullable: true,
+  })
+  clientCompany?: string | null;
+
+  @Column({
+    type: 'varchar',
+    length: 255,
+    name: 'client_email',
+    nullable: true,
+  })
+  clientEmail?: string | null;
+
+  @Column({
+    type: 'varchar',
+    length: 255,
+    name: 'client_website',
+    nullable: true,
+  })
+  clientWebsite?: string | null;
+
   @Column({ type: 'text', nullable: true })
   description?: string | null;
 
@@ -66,6 +90,14 @@ export class ProjectEntity {
 
   @Column({ type: 'uuid', name: 'last_update_author_id', nullable: true })
   lastUpdateAuthorId?: string | null;
+
+  @Column({
+    type: 'varchar',
+    length: 40,
+    name: 'milestone_template',
+    default: 'STANDARD',
+  })
+  milestoneTemplate!: string;
 
   @Column({
     type: 'timestamptz',

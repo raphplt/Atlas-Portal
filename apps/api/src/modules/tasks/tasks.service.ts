@@ -7,12 +7,20 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { TaskSource, UserRole } from '../../common/enums';
 import type { AuthUser } from '../../common/types/auth-user.type';
-import { ProjectEntity, TaskEntity } from '../../database/entities';
+import {
+  FileAssetEntity,
+  MilestoneValidationEntity,
+  ProjectEntity,
+  TaskChecklistItemEntity,
+  TaskEntity,
+} from '../../database/entities';
 import { AuditService } from '../audit/audit.service';
 import { ProjectsService } from '../projects/projects.service';
+import { CreateChecklistItemDto } from './dto/create-checklist-item.dto';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { ReorderTasksDto } from './dto/reorder-tasks.dto';
 import { TaskQueryDto } from './dto/task-query.dto';
+import { UpdateChecklistItemDto } from './dto/update-checklist-item.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 
 @Injectable()
@@ -22,11 +30,17 @@ export class TasksService {
     private readonly taskRepository: Repository<TaskEntity>,
     @InjectRepository(ProjectEntity)
     private readonly projectRepository: Repository<ProjectEntity>,
+    @InjectRepository(TaskChecklistItemEntity)
+    private readonly checklistRepository: Repository<TaskChecklistItemEntity>,
+    @InjectRepository(FileAssetEntity)
+    private readonly fileRepository: Repository<FileAssetEntity>,
+    @InjectRepository(MilestoneValidationEntity)
+    private readonly milestoneRepository: Repository<MilestoneValidationEntity>,
     private readonly projectsService: ProjectsService,
     private readonly auditService: AuditService,
   ) {}
 
-  async list(user: AuthUser, query: TaskQueryDto): Promise<TaskEntity[]> {
+  async list(user: AuthUser, query: TaskQueryDto) {
     const qb = this.taskRepository.createQueryBuilder('task');
 
     qb.innerJoin(ProjectEntity, 'project', 'project.id = task.project_id');
@@ -61,11 +75,103 @@ export class TasksService {
       );
     }
 
-    return qb
+    const tasks = await qb
       .orderBy('task.position', 'ASC')
       .addOrderBy('task.created_at', 'ASC')
       .limit(query.limit)
       .getMany();
+
+    if (tasks.length === 0) return [];
+
+    // Fetch checklist counts for all tasks
+    const taskIds = tasks.map((t) => t.id);
+    const checklistCounts = await this.checklistRepository
+      .createQueryBuilder('cl')
+      .select('cl.task_id', 'taskId')
+      .addSelect('COUNT(*)', 'total')
+      .addSelect('SUM(CASE WHEN cl.completed THEN 1 ELSE 0 END)', 'done')
+      .where('cl.task_id IN (:...taskIds)', { taskIds })
+      .groupBy('cl.task_id')
+      .getRawMany<{ taskId: string; total: string; done: string }>();
+
+    const countMap = new Map(
+      checklistCounts.map((c) => [
+        c.taskId,
+        { total: parseInt(c.total, 10), done: parseInt(c.done, 10) },
+      ]),
+    );
+
+    return tasks.map((t) => {
+      const counts = countMap.get(t.id) ?? { total: 0, done: 0 };
+      return {
+        ...t,
+        checklistTotal: counts.total,
+        checklistDone: counts.done,
+      };
+    });
+  }
+
+  async getById(user: AuthUser, taskId: string) {
+    const task = await this.taskRepository.findOne({ where: { id: taskId } });
+
+    if (!task || task.workspaceId !== user.workspaceId) {
+      throw new NotFoundException('Task not found');
+    }
+
+    // Access check for clients
+    if (user.role === UserRole.CLIENT) {
+      await this.projectsService.getById(user, task.projectId);
+    }
+
+    // Checklist counts
+    const checklistCounts = await this.checklistRepository
+      .createQueryBuilder('cl')
+      .select('COUNT(*)', 'total')
+      .addSelect('SUM(CASE WHEN cl.completed THEN 1 ELSE 0 END)', 'done')
+      .where('cl.task_id = :taskId', { taskId })
+      .getRawOne<{ total: string; done: string }>();
+
+    // Files linked to this task
+    const files = await this.fileRepository.find({
+      where: {
+        taskId,
+        workspaceId: user.workspaceId,
+        isDeleted: false,
+      },
+      order: { createdAt: 'DESC' },
+      take: 50,
+    });
+
+    // Milestone validation if applicable
+    let milestoneValidation: MilestoneValidationEntity | null = null;
+    if (task.milestoneType) {
+      milestoneValidation = await this.milestoneRepository.findOne({
+        where: {
+          workspaceId: user.workspaceId,
+          projectId: task.projectId,
+          type: task.milestoneType,
+        },
+      });
+    }
+
+    return {
+      ...task,
+      checklistTotal: parseInt(checklistCounts?.total ?? '0', 10),
+      checklistDone: parseInt(checklistCounts?.done ?? '0', 10),
+      files: files.map((f) => ({
+        id: f.id,
+        originalName: f.originalName,
+        category: f.category,
+        contentType: f.contentType,
+        sizeBytes: f.sizeBytes,
+        versionLabel: f.versionLabel,
+        isUploaded: f.isUploaded,
+        isDeleted: f.isDeleted,
+        noteCount: 0,
+        createdAt: f.createdAt,
+      })),
+      milestoneValidation,
+    };
   }
 
   async create(user: AuthUser, dto: CreateTaskDto): Promise<TaskEntity> {
@@ -86,6 +192,9 @@ export class TasksService {
       description: dto.description,
       status: dto.status,
       source: dto.source ?? TaskSource.CORE,
+      priority: dto.priority,
+      dueDate: dto.dueDate ? new Date(dto.dueDate) : undefined,
+      milestoneType: dto.milestoneType,
       blockedReason: dto.blockedReason,
       position,
     });
@@ -120,6 +229,12 @@ export class TasksService {
       throw new ForbiddenException('Only admins can update tasks');
     }
 
+    // Handle dueDate conversion
+    if (dto.dueDate !== undefined) {
+      task.dueDate = dto.dueDate ? new Date(dto.dueDate) : null;
+      delete (dto as Record<string, unknown>).dueDate;
+    }
+
     Object.assign(task, dto);
     const updated = await this.taskRepository.save(task);
 
@@ -134,6 +249,37 @@ export class TasksService {
     });
 
     return updated;
+  }
+
+  async remove(user: AuthUser, taskId: string): Promise<{ success: true }> {
+    const task = await this.taskRepository.findOne({ where: { id: taskId } });
+
+    if (!task || task.workspaceId !== user.workspaceId) {
+      throw new NotFoundException('Task not found');
+    }
+
+    if (user.role !== UserRole.ADMIN) {
+      throw new ForbiddenException('Only admins can delete tasks');
+    }
+
+    // Don't allow deleting milestone tasks
+    if (task.milestoneType) {
+      throw new ForbiddenException('Milestone tasks cannot be deleted');
+    }
+
+    await this.taskRepository.delete(taskId);
+
+    await this.auditService.create({
+      workspaceId: user.workspaceId,
+      projectId: task.projectId,
+      actorId: user.id,
+      action: 'TASK_DELETED',
+      resourceType: 'Task',
+      resourceId: taskId,
+      metadata: { title: task.title },
+    });
+
+    return { success: true };
   }
 
   async createFromTicket(
@@ -185,6 +331,102 @@ export class TasksService {
       resourceId: dto.projectId,
       metadata: { count: dto.items.length },
     });
+  }
+
+  /* ─── Checklist ─── */
+
+  async listChecklist(
+    user: AuthUser,
+    taskId: string,
+  ): Promise<TaskChecklistItemEntity[]> {
+    const task = await this.taskRepository.findOne({ where: { id: taskId } });
+    if (!task || task.workspaceId !== user.workspaceId) {
+      throw new NotFoundException('Task not found');
+    }
+
+    if (user.role === UserRole.CLIENT) {
+      await this.projectsService.getById(user, task.projectId);
+    }
+
+    return this.checklistRepository.find({
+      where: { taskId, workspaceId: user.workspaceId },
+      order: { position: 'ASC', createdAt: 'ASC' },
+    });
+  }
+
+  async addChecklistItem(
+    user: AuthUser,
+    taskId: string,
+    dto: CreateChecklistItemDto,
+  ): Promise<TaskChecklistItemEntity> {
+    if (user.role !== UserRole.ADMIN) {
+      throw new ForbiddenException('Only admins can manage checklist items');
+    }
+
+    const task = await this.taskRepository.findOne({ where: { id: taskId } });
+    if (!task || task.workspaceId !== user.workspaceId) {
+      throw new NotFoundException('Task not found');
+    }
+
+    const position = await this.checklistRepository.count({
+      where: { taskId, workspaceId: user.workspaceId },
+    });
+
+    const item = this.checklistRepository.create({
+      workspaceId: user.workspaceId,
+      taskId,
+      title: dto.title,
+      position,
+    });
+
+    return this.checklistRepository.save(item);
+  }
+
+  async updateChecklistItem(
+    user: AuthUser,
+    taskId: string,
+    itemId: string,
+    dto: UpdateChecklistItemDto,
+  ): Promise<TaskChecklistItemEntity> {
+    // Admin-only for title/position changes, but allow client to toggle completion
+    const task = await this.taskRepository.findOne({ where: { id: taskId } });
+    if (!task || task.workspaceId !== user.workspaceId) {
+      throw new NotFoundException('Task not found');
+    }
+
+    if (user.role !== UserRole.ADMIN) {
+      throw new ForbiddenException('Only admins can update checklist items');
+    }
+
+    const item = await this.checklistRepository.findOne({
+      where: { id: itemId, taskId, workspaceId: user.workspaceId },
+    });
+    if (!item) {
+      throw new NotFoundException('Checklist item not found');
+    }
+
+    Object.assign(item, dto);
+    return this.checklistRepository.save(item);
+  }
+
+  async removeChecklistItem(
+    user: AuthUser,
+    taskId: string,
+    itemId: string,
+  ): Promise<{ success: true }> {
+    if (user.role !== UserRole.ADMIN) {
+      throw new ForbiddenException('Only admins can delete checklist items');
+    }
+
+    const item = await this.checklistRepository.findOne({
+      where: { id: itemId, taskId, workspaceId: user.workspaceId },
+    });
+    if (!item) {
+      throw new NotFoundException('Checklist item not found');
+    }
+
+    await this.checklistRepository.delete(itemId);
+    return { success: true };
   }
 
   async ensureProjectBelongsToWorkspace(

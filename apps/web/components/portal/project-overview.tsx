@@ -6,9 +6,12 @@ import { Progress } from '@/components/ui/progress';
 import { useTranslations } from '@/components/providers/translation-provider';
 import {
   ArrowRight,
+  Building2,
   Calendar,
   CheckCircle2,
   ClipboardList,
+  Link as LinkIcon,
+  Mail,
   OctagonAlert,
   Zap,
 } from 'lucide-react';
@@ -26,6 +29,9 @@ interface ProjectOverviewProps {
       nextAction?: string | null;
       estimatedDeliveryAt?: string | null;
       createdAt?: string;
+      clientCompany?: string | null;
+      clientEmail?: string | null;
+      clientWebsite?: string | null;
     };
     summary: {
       totalTasks: number;
@@ -100,6 +106,34 @@ export function ProjectOverview({ locale, projectId, dashboard }: ProjectOvervie
                     })}
                   </span>
                 </span>
+              ) : null}
+            </div>
+          ) : null}
+
+          {(project.clientCompany || project.clientEmail || project.clientWebsite) ? (
+            <div className="flex flex-wrap gap-x-6 gap-y-2 border-t border-border pt-4 text-xs text-muted-foreground">
+              {project.clientCompany ? (
+                <span className="inline-flex items-center gap-1.5">
+                  <Building2 className="h-3.5 w-3.5" />
+                  {project.clientCompany}
+                </span>
+              ) : null}
+              {project.clientEmail ? (
+                <span className="inline-flex items-center gap-1.5">
+                  <Mail className="h-3.5 w-3.5" />
+                  {project.clientEmail}
+                </span>
+              ) : null}
+              {project.clientWebsite ? (
+                <a
+                  href={project.clientWebsite}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 hover:text-foreground hover:underline"
+                >
+                  <LinkIcon className="h-3.5 w-3.5" />
+                  {project.clientWebsite}
+                </a>
               ) : null}
             </div>
           ) : null}

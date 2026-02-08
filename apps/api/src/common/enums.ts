@@ -12,6 +12,14 @@ export enum ProjectStatus {
 export enum TaskSource {
   CORE = 'CORE',
   TICKET = 'TICKET',
+  MILESTONE = 'MILESTONE',
+}
+
+export enum TaskPriority {
+  LOW = 'LOW',
+  MEDIUM = 'MEDIUM',
+  HIGH = 'HIGH',
+  URGENT = 'URGENT',
 }
 
 export enum TaskStatus {
@@ -56,6 +64,13 @@ export enum MilestoneType {
   DESIGN = 'DESIGN',
   CONTENT = 'CONTENT',
   DELIVERY = 'DELIVERY',
+}
+
+export enum ProjectMilestoneTemplate {
+  STANDARD = 'STANDARD',
+  QUICK_START = 'QUICK_START',
+  CONTENT_FIRST = 'CONTENT_FIRST',
+  CUSTOM = 'CUSTOM',
 }
 
 export enum ClientInvitationStatus {

@@ -142,7 +142,11 @@ export class UsersService {
 
     const [projectStats, invitationStats] = await Promise.all([
       this.getWorkspaceClientProjectStats(workspaceId, clientId),
-      this.getWorkspaceClientInvitationStats(workspaceId, clientId, client.email),
+      this.getWorkspaceClientInvitationStats(
+        workspaceId,
+        clientId,
+        client.email,
+      ),
     ]);
 
     return {

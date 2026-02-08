@@ -47,7 +47,10 @@ export class ProjectsController {
   }
 
   @Get(':id/tab-notifications')
-  tabNotifications(@CurrentUser() user: AuthUser, @Param('id') projectId: string) {
+  tabNotifications(
+    @CurrentUser() user: AuthUser,
+    @Param('id') projectId: string,
+  ) {
     return this.projectsService.getTabNotifications(user, projectId);
   }
 

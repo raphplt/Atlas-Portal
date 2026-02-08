@@ -3,10 +3,12 @@
 import { ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { EditProjectDialog } from '@/components/portal/dialogs/edit-project-dialog';
 import { ProjectProvider, useProjectContext } from '@/components/portal/project-context';
 import { useAuth } from '@/components/providers/auth-provider';
 import { useTranslations } from '@/components/providers/translation-provider';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useProjectSocket } from '@/hooks/use-project-socket';
@@ -22,9 +24,12 @@ import {
   MessageSquare,
   FolderOpen,
   CreditCard,
-  Flag,
   Activity,
   Lock,
+  Mail,
+  Link as LinkIcon,
+  Building2,
+  Pencil,
 } from 'lucide-react';
 
 interface TabDef {
@@ -41,7 +46,6 @@ type ProjectTabKey =
   | 'messages'
   | 'files'
   | 'payments'
-  | 'milestones'
   | 'activity'
   | 'admin-notes';
 
@@ -58,7 +62,6 @@ const TABS: TabDef[] = [
   { key: 'messages', labelKey: 'project.nav.messages', icon: MessageSquare },
   { key: 'files', labelKey: 'project.nav.files', icon: FolderOpen },
   { key: 'payments', labelKey: 'project.nav.payments', icon: CreditCard },
-  { key: 'milestones', labelKey: 'project.nav.milestones', icon: Flag },
   { key: 'activity', labelKey: 'project.nav.activity', icon: Activity },
   { key: 'admin-notes', labelKey: 'project.nav.adminNotes', icon: Lock, adminOnly: true },
 ];
@@ -69,7 +72,6 @@ const EMPTY_TAB_NOTIFICATIONS: ProjectTabNotificationCounts = {
   messages: 0,
   files: 0,
   payments: 0,
-  milestones: 0,
   activity: 0,
   'admin-notes': 0,
 };
@@ -81,7 +83,6 @@ const NOTIFICATION_TAB_KEYS: NotificationTabKey[] = [
   'messages',
   'files',
   'payments',
-  'milestones',
   'activity',
   'admin-notes',
 ];
@@ -102,6 +103,7 @@ function ProjectLayoutInner({ children }: { children: ReactNode }) {
   const router = useRouter();
   const previousTabRef = useRef<string | null>(null);
   const [tabNotifications, setTabNotifications] = useState<ProjectTabNotificationCounts>(EMPTY_TAB_NOTIFICATIONS);
+  const [editProjectOpen, setEditProjectOpen] = useState(false);
 
   const activeTab = useMemo(() => {
     const base = `/${locale}/projects/${projectId}/`;
@@ -224,8 +226,49 @@ function ProjectLayoutInner({ children }: { children: ReactNode }) {
             <p className="mt-1 text-sm text-muted-foreground">
               {project.description ?? t('projects.noDescription')}
             </p>
+            {project.clientEmail || project.clientWebsite || project.clientCompany ? (
+              <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                {project.clientCompany ? (
+                  <span className="inline-flex items-center gap-1.5">
+                    <Building2 className="h-3.5 w-3.5" />
+                    {project.clientCompany}
+                  </span>
+                ) : null}
+                {project.clientEmail ? (
+                  <span className="inline-flex items-center gap-1.5">
+                    <Mail className="h-3.5 w-3.5" />
+                    {project.clientEmail}
+                  </span>
+                ) : null}
+                {project.clientWebsite ? (
+                  <a
+                    href={project.clientWebsite}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 hover:text-foreground hover:underline"
+                  >
+                    <LinkIcon className="h-3.5 w-3.5" />
+                    {project.clientWebsite}
+                  </a>
+                ) : null}
+              </div>
+            ) : null}
           </div>
-          <Badge className={PROJECT_STATUS_BADGE[project.status] ?? ''}>{t(`status.project.${project.status}`)}</Badge>
+          <div className="flex items-center gap-2">
+            <Badge className={PROJECT_STATUS_BADGE[project.status] ?? ''}>{t(`status.project.${project.status}`)}</Badge>
+            {isAdmin ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setEditProjectOpen(true)}
+                className="gap-1.5"
+              >
+                <Pencil className="h-3.5 w-3.5" />
+                {t('project.edit.cta')}
+              </Button>
+            ) : null}
+          </div>
         </div>
       </div>
 
@@ -260,6 +303,10 @@ function ProjectLayoutInner({ children }: { children: ReactNode }) {
       </Tabs>
 
       {children}
+
+      {isAdmin ? (
+        <EditProjectDialog open={editProjectOpen} onOpenChange={setEditProjectOpen} />
+      ) : null}
     </section>
   );
 }

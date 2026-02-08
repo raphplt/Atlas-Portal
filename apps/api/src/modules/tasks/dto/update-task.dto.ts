@@ -1,4 +1,5 @@
 import {
+  IsDateString,
   IsEnum,
   IsInt,
   IsOptional,
@@ -6,7 +7,7 @@ import {
   MaxLength,
   Min,
 } from 'class-validator';
-import { TaskStatus } from '../../../common/enums';
+import { TaskPriority, TaskStatus } from '../../../common/enums';
 
 export class UpdateTaskDto {
   @IsOptional()
@@ -21,6 +22,14 @@ export class UpdateTaskDto {
   @IsOptional()
   @IsEnum(TaskStatus)
   status?: TaskStatus;
+
+  @IsOptional()
+  @IsEnum(TaskPriority)
+  priority?: TaskPriority | null;
+
+  @IsOptional()
+  @IsDateString()
+  dueDate?: string | null;
 
   @IsOptional()
   @IsString()

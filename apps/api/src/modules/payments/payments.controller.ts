@@ -41,10 +41,7 @@ export class PaymentsController {
   @Post(':id/cancel')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
-  cancel(
-    @CurrentUser() user: AuthUser,
-    @Param('id') paymentId: string,
-  ) {
+  cancel(@CurrentUser() user: AuthUser, @Param('id') paymentId: string) {
     return this.paymentsService.cancel(user, paymentId);
   }
 

@@ -160,10 +160,7 @@ export class PaymentsService {
     return saved;
   }
 
-  async cancel(
-    user: AuthUser,
-    paymentId: string,
-  ): Promise<PaymentEntity> {
+  async cancel(user: AuthUser, paymentId: string): Promise<PaymentEntity> {
     if (user.role !== UserRole.ADMIN) {
       throw new ForbiddenException({
         code: 'PAYMENT_NOT_FOUND',
@@ -262,8 +259,7 @@ export class PaymentsService {
 
     const webAppUrl =
       this.configService.get<string>('WEB_APP_URL') ?? 'http://localhost:3000';
-    const clientLocale =
-      client?.locale?.toLowerCase() === 'en' ? 'en' : 'fr';
+    const clientLocale = client?.locale?.toLowerCase() === 'en' ? 'en' : 'fr';
     const successUrl = `${webAppUrl}/${clientLocale}/payments/success`;
     const cancelUrl = `${webAppUrl}/${clientLocale}/payments/cancel`;
 

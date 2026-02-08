@@ -690,6 +690,18 @@ export class TicketsService {
       throw new ForbiddenException('Only admin can delete tickets');
     }
 
+    if (ticket.status === TicketStatus.PAID) {
+      throw new BadRequestException({
+        code: 'TICKET_ALREADY_PAID',
+        message: 'Cannot delete a paid ticket',
+      });
+    }
+
+    // Delete the converted task if one exists
+    if (ticket.convertedTaskId) {
+      await this.tasksService.remove(user, ticket.convertedTaskId);
+    }
+
     ticket.isDeleted = true;
     ticket.deletedAt = new Date();
     await this.ticketRepository.save(ticket);

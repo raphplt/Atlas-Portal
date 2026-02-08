@@ -5,8 +5,14 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { MoreThan, Repository } from 'typeorm';
-import { MilestoneType, TaskStatus, UserRole } from '../../common/enums';
+import { In, MoreThan, Repository } from 'typeorm';
+import {
+  MilestoneType,
+  ProjectMilestoneTemplate,
+  TaskSource,
+  TaskStatus,
+  UserRole,
+} from '../../common/enums';
 import type { AuthUser } from '../../common/types/auth-user.type';
 import {
   AdminNoteEntity,
@@ -30,6 +36,10 @@ import {
   isProjectNotificationTab,
   ProjectNotificationTab,
 } from './project-notification-tabs';
+import {
+  normalizeMilestoneTypes,
+  resolveProjectMilestones,
+} from './project-milestone-templates';
 
 @Injectable()
 export class ProjectsService {
@@ -60,39 +70,42 @@ export class ProjectsService {
   ) {}
 
   async create(user: AuthUser, dto: CreateProjectDto): Promise<ProjectEntity> {
-    const client = await this.usersRepository.findOne({
-      where: {
-        id: dto.clientId,
-        workspaceId: user.workspaceId,
-        role: UserRole.CLIENT,
-      },
-    });
-
-    if (!client) {
-      throw new NotFoundException('Client not found in workspace');
+    const client = await this.assertClientInWorkspace(
+      user.workspaceId,
+      dto.clientId,
+    );
+    const projectName = dto.name.trim();
+    if (!projectName) {
+      throw new BadRequestException('Project name is required');
     }
+    const milestoneConfig = resolveProjectMilestones({
+      template: dto.milestoneTemplate,
+      milestoneTypes: dto.milestoneTypes,
+    });
 
     const project = this.projectsRepository.create({
       workspaceId: user.workspaceId,
       clientId: dto.clientId,
-      name: dto.name,
-      description: dto.description,
-      nextAction: dto.nextAction,
+      name: projectName,
+      clientCompany: this.normalizeOptionalText(dto.clientCompany, 180),
+      clientEmail:
+        this.normalizeOptionalText(dto.clientEmail, 255)?.toLowerCase() ??
+        client.email,
+      clientWebsite: this.normalizeClientWebsite(dto.clientWebsite),
+      description: this.normalizeOptionalText(dto.description),
+      nextAction: this.normalizeOptionalText(dto.nextAction, 255),
       progress: dto.progress ?? 0,
       estimatedDeliveryAt: dto.estimatedDeliveryAt,
+      milestoneTemplate: milestoneConfig.template,
       lastUpdateAuthorId: user.id,
     });
 
     const savedProject = await this.projectsRepository.save(project);
-
-    const milestones = Object.values(MilestoneType).map((type) =>
-      this.milestoneRepository.create({
-        workspaceId: user.workspaceId,
-        projectId: savedProject.id,
-        type,
-      }),
+    await this.reconcileProjectMilestones(
+      user.workspaceId,
+      savedProject.id,
+      milestoneConfig.milestoneTypes,
     );
-    await this.milestoneRepository.save(milestones);
 
     await this.auditService.create({
       workspaceId: user.workspaceId,
@@ -130,7 +143,15 @@ export class ProjectsService {
 
     if (query.search) {
       qb.andWhere(
-        '(project.name ILIKE :search OR project.description ILIKE :search)',
+        `
+          (
+            project.name ILIKE :search
+            OR project.description ILIKE :search
+            OR project.client_email ILIKE :search
+            OR project.client_company ILIKE :search
+            OR project.client_website ILIKE :search
+          )
+        `,
         {
           search: `%${query.search}%`,
         },
@@ -149,10 +170,7 @@ export class ProjectsService {
           .createQueryBuilder('task')
           .select('task.project_id', 'projectId')
           .addSelect('COUNT(*)', 'total')
-          .addSelect(
-            "COUNT(CASE WHEN task.status = 'DONE' THEN 1 END)",
-            'done',
-          )
+          .addSelect("COUNT(CASE WHEN task.status = 'DONE' THEN 1 END)", 'done')
           .where('task.project_id IN (:...projectIds)', { projectIds })
           .groupBy('task.project_id')
           .getRawMany();
@@ -198,8 +216,85 @@ export class ProjectsService {
       throw new ForbiddenException('Only admin can update project');
     }
 
-    Object.assign(project, dto, { lastUpdateAuthorId: user.id });
+    const requestedClientId = dto.clientId ?? project.clientId;
+    const clientWasChanged = requestedClientId !== project.clientId;
+    let nextClient: UserEntity | null = null;
+    if (clientWasChanged) {
+      nextClient = await this.assertClientInWorkspace(
+        user.workspaceId,
+        requestedClientId,
+      );
+      project.clientId = requestedClientId;
+    }
+
+    if (dto.name !== undefined) {
+      const nextName = dto.name.trim();
+      if (!nextName) {
+        throw new BadRequestException('Project name is required');
+      }
+      project.name = nextName;
+    }
+    if (dto.description !== undefined) {
+      project.description = this.normalizeOptionalText(dto.description);
+    }
+    if (dto.nextAction !== undefined) {
+      project.nextAction = this.normalizeOptionalText(dto.nextAction, 255);
+    }
+    if (dto.progress !== undefined) {
+      project.progress = dto.progress;
+    }
+    if (dto.status !== undefined) {
+      project.status = dto.status;
+    }
+    if (dto.estimatedDeliveryAt !== undefined) {
+      project.estimatedDeliveryAt = dto.estimatedDeliveryAt;
+    }
+    if (dto.clientCompany !== undefined) {
+      project.clientCompany = this.normalizeOptionalText(
+        dto.clientCompany,
+        180,
+      );
+    }
+    if (dto.clientEmail !== undefined) {
+      project.clientEmail =
+        this.normalizeOptionalText(dto.clientEmail, 255)?.toLowerCase() ?? null;
+    } else if (nextClient) {
+      project.clientEmail = nextClient.email;
+    }
+    if (dto.clientWebsite !== undefined) {
+      project.clientWebsite = this.normalizeClientWebsite(dto.clientWebsite);
+    }
+
+    const hasMilestoneConfigUpdate =
+      dto.milestoneTemplate !== undefined || dto.milestoneTypes !== undefined;
+
+    let milestoneConfig: {
+      template: ProjectMilestoneTemplate;
+      milestoneTypes: MilestoneType[];
+    } | null = null;
+    if (hasMilestoneConfigUpdate) {
+      const existingMilestones = await this.listMilestones(user, projectId);
+      milestoneConfig = resolveProjectMilestones({
+        template:
+          dto.milestoneTemplate ??
+          (project.milestoneTemplate as ProjectMilestoneTemplate),
+        milestoneTypes:
+          dto.milestoneTypes ??
+          normalizeMilestoneTypes(existingMilestones.map((item) => item.type)),
+      });
+      project.milestoneTemplate = milestoneConfig.template;
+    }
+
+    project.lastUpdateAuthorId = user.id;
     const updated = await this.projectsRepository.save(project);
+
+    if (milestoneConfig) {
+      await this.reconcileProjectMilestones(
+        user.workspaceId,
+        projectId,
+        milestoneConfig.milestoneTypes,
+      );
+    }
 
     await this.auditService.create({
       workspaceId: user.workspaceId,
@@ -208,7 +303,10 @@ export class ProjectsService {
       action: 'PROJECT_UPDATED',
       resourceType: 'Project',
       resourceId: projectId,
-      metadata: { ...dto },
+      metadata: {
+        ...dto,
+        clientChanged: clientWasChanged,
+      },
     });
 
     return updated;
@@ -315,7 +413,6 @@ export class ProjectsService {
       messagesCount,
       filesCount,
       paymentsCount,
-      milestonesCount,
       activityCount,
       adminNotesCount,
     ] = await Promise.all([
@@ -361,13 +458,6 @@ export class ProjectsService {
           updatedAt: MoreThan(getLastReadAt('payments')),
         },
       }),
-      this.milestoneRepository.count({
-        where: {
-          workspaceId: user.workspaceId,
-          projectId,
-          updatedAt: MoreThan(getLastReadAt('milestones')),
-        },
-      }),
       this.auditEventsRepository
         .createQueryBuilder('event')
         .where('event.workspace_id = :workspaceId', {
@@ -402,7 +492,6 @@ export class ProjectsService {
       messages: messagesCount,
       files: filesCount,
       payments: paymentsCount,
-      milestones: milestonesCount,
       activity: activityCount,
       'admin-notes': adminNotesCount,
     };
@@ -536,6 +625,174 @@ export class ProjectsService {
         createdAt: 'ASC',
       },
     });
+  }
+
+  private async assertClientInWorkspace(
+    workspaceId: string,
+    clientId: string,
+  ): Promise<UserEntity> {
+    const client = await this.usersRepository.findOne({
+      where: {
+        id: clientId,
+        workspaceId,
+        role: UserRole.CLIENT,
+      },
+    });
+
+    if (!client) {
+      throw new NotFoundException('Client not found in workspace');
+    }
+
+    return client;
+  }
+
+  private normalizeOptionalText(
+    value: string | null | undefined,
+    maxLength?: number,
+  ): string | null {
+    if (value === undefined || value === null) {
+      return null;
+    }
+
+    const normalized = value.trim();
+    if (!normalized) {
+      return null;
+    }
+
+    if (maxLength && normalized.length > maxLength) {
+      throw new BadRequestException('Field exceeds maximum length');
+    }
+
+    return normalized;
+  }
+
+  private normalizeClientWebsite(
+    value: string | null | undefined,
+  ): string | null {
+    const normalized = this.normalizeOptionalText(value, 255);
+    if (!normalized) {
+      return null;
+    }
+
+    const withProtocol = /^https?:\/\//i.test(normalized)
+      ? normalized
+      : `https://${normalized}`;
+
+    try {
+      const parsed = new URL(withProtocol);
+      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+        throw new Error('Invalid protocol');
+      }
+      return parsed.toString().replace(/\/$/, '');
+    } catch {
+      throw new BadRequestException('Invalid client website');
+    }
+  }
+
+  private async reconcileProjectMilestones(
+    workspaceId: string,
+    projectId: string,
+    milestoneTypes: MilestoneType[],
+  ): Promise<void> {
+    const normalizedTypes = normalizeMilestoneTypes(milestoneTypes);
+    if (normalizedTypes.length === 0) {
+      throw new BadRequestException('At least one milestone is required');
+    }
+
+    const wantedTypes = new Set(normalizedTypes);
+
+    const existingMilestones = await this.milestoneRepository.find({
+      where: { workspaceId, projectId },
+    });
+
+    const existingMilestoneByType = new Map(
+      existingMilestones.map((milestone) => [milestone.type, milestone]),
+    );
+
+    const milestonesToCreate = normalizedTypes
+      .filter((type) => !existingMilestoneByType.has(type))
+      .map((type) =>
+        this.milestoneRepository.create({
+          workspaceId,
+          projectId,
+          type,
+        }),
+      );
+    if (milestonesToCreate.length > 0) {
+      await this.milestoneRepository.save(milestonesToCreate);
+    }
+
+    const milestoneIdsToDelete = existingMilestones
+      .filter((milestone) => !wantedTypes.has(milestone.type))
+      .map((milestone) => milestone.id);
+    if (milestoneIdsToDelete.length > 0) {
+      await this.milestoneRepository.delete({
+        workspaceId,
+        id: In(milestoneIdsToDelete),
+      });
+    }
+
+    const existingMilestoneTasks = await this.tasksRepository.find({
+      where: { workspaceId, projectId, source: TaskSource.MILESTONE },
+    });
+
+    const existingTaskByType = new Map(
+      existingMilestoneTasks
+        .filter((task): task is TaskEntity & { milestoneType: MilestoneType } =>
+          Boolean(task.milestoneType),
+        )
+        .map((task) => [task.milestoneType, task]),
+    );
+
+    const milestoneTasksToCreate = normalizedTypes
+      .filter((type) => !existingTaskByType.has(type))
+      .map((type, index) =>
+        this.tasksRepository.create({
+          workspaceId,
+          projectId,
+          source: TaskSource.MILESTONE,
+          title: type,
+          milestoneType: type,
+          status: TaskStatus.BACKLOG,
+          position: 900 + index,
+        }),
+      );
+    if (milestoneTasksToCreate.length > 0) {
+      await this.tasksRepository.save(milestoneTasksToCreate);
+    }
+
+    const milestoneTaskIdsToDelete = existingMilestoneTasks
+      .filter(
+        (task) => !task.milestoneType || !wantedTypes.has(task.milestoneType),
+      )
+      .map((task) => task.id);
+    if (milestoneTaskIdsToDelete.length > 0) {
+      await this.tasksRepository.delete({
+        workspaceId,
+        id: In(milestoneTaskIdsToDelete),
+      });
+    }
+
+    const milestoneTasksToUpdate: TaskEntity[] = [];
+    for (const [index, type] of normalizedTypes.entries()) {
+      const existingTask = existingTaskByType.get(type);
+      if (!existingTask) {
+        continue;
+      }
+
+      const expectedPosition = 900 + index;
+      if (
+        existingTask.position !== expectedPosition ||
+        existingTask.title !== String(type)
+      ) {
+        existingTask.position = expectedPosition;
+        existingTask.title = type;
+        milestoneTasksToUpdate.push(existingTask);
+      }
+    }
+    if (milestoneTasksToUpdate.length > 0) {
+      await this.tasksRepository.save(milestoneTasksToUpdate);
+    }
   }
 
   private async assertTabNotificationAccess(

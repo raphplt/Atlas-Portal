@@ -10,6 +10,7 @@ import { ProjectEntity } from './project.entity';
 import { ProjectTabReadEntity } from './project-tab-read.entity';
 import { RefreshTokenEntity } from './refresh-token.entity';
 import { StripeEventEntity } from './stripe-event.entity';
+import { TaskChecklistItemEntity } from './task-checklist-item.entity';
 import { TaskEntity } from './task.entity';
 import { TicketEntity } from './ticket.entity';
 import { UserEntity } from './user.entity';
@@ -20,6 +21,7 @@ export const ENTITIES = [
   UserEntity,
   RefreshTokenEntity,
   ProjectEntity,
+  TaskChecklistItemEntity,
   TaskEntity,
   TicketEntity,
   MessageEntity,
@@ -47,6 +49,7 @@ export {
   ProjectTabReadEntity,
   RefreshTokenEntity,
   StripeEventEntity,
+  TaskChecklistItemEntity,
   TaskEntity,
   TicketEntity,
   UserEntity,

@@ -9,7 +9,12 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { TaskSource, TaskStatus } from '../../common/enums';
+import {
+  MilestoneType,
+  TaskPriority,
+  TaskSource,
+  TaskStatus,
+} from '../../common/enums';
 import { WorkspaceEntity } from './workspace.entity';
 import { ProjectEntity } from './project.entity';
 import { TicketEntity } from './ticket.entity';
@@ -55,6 +60,20 @@ export class TaskEntity {
     nullable: true,
   })
   blockedReason?: string | null;
+
+  @Column({ type: 'enum', enum: TaskPriority, nullable: true })
+  priority?: TaskPriority | null;
+
+  @Column({ type: 'timestamptz', name: 'due_date', nullable: true })
+  dueDate?: Date | null;
+
+  @Column({
+    type: 'enum',
+    enum: MilestoneType,
+    name: 'milestone_type',
+    nullable: true,
+  })
+  milestoneType?: MilestoneType | null;
 
   @Column({ type: 'int', default: 0 })
   position!: number;

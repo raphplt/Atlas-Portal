@@ -344,6 +344,7 @@ export default function ProjectFilesPage() {
 			{/* Preview dialog */}
 			<Dialog open={!!preview} onOpenChange={(open) => { if (!open) setPreview(null); }}>
 				<DialogContent
+					showCloseButton={false}
 					className={cn(
 						"flex flex-col p-0 gap-0",
 						preview?.contentType === "application/pdf"
@@ -357,16 +358,27 @@ export default function ProjectFilesPage() {
 							<p className="truncate pr-8 text-sm font-medium text-foreground">
 								{preview?.name}
 							</p>
-							{preview ? (
+							<div className="flex items-center gap-2">
+								{preview ? (
+									<Button
+										size="sm"
+										variant="outline"
+										onClick={() => window.open(preview.url, "_blank", "noopener,noreferrer")}
+									>
+										<Download className="mr-1.5 h-3.5 w-3.5" />
+										{t("project.file.download")}
+									</Button>
+								) : null}
 								<Button
-									size="sm"
-									variant="outline"
-									onClick={() => window.open(preview.url, "_blank", "noopener,noreferrer")}
+									type="button"
+									size="icon-sm"
+									variant="ghost"
+									aria-label="Close preview"
+									onClick={() => setPreview(null)}
 								>
-									<Download className="mr-1.5 h-3.5 w-3.5" />
-									{t("project.file.download")}
+									<X className="h-4 w-4" />
 								</Button>
-							) : null}
+							</div>
 						</div>
 					</DialogHeader>
 					<div className="flex-1 overflow-hidden">

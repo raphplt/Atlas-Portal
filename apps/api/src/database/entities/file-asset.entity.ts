@@ -71,6 +71,9 @@ export class FileAssetEntity {
   @Column({ type: 'uuid', name: 'ticket_id', nullable: true })
   ticketId?: string | null;
 
+  @Column({ type: 'uuid', name: 'task_id', nullable: true })
+  taskId?: string | null;
+
   @Column({ type: 'uuid', name: 'message_id', nullable: true })
   messageId?: string | null;
 

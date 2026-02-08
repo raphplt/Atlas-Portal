@@ -9,4 +9,8 @@ export class FileQueryDto extends PaginationQueryDto {
   @IsOptional()
   @IsEnum(FileCategory)
   category?: FileCategory;
+
+  @IsOptional()
+  @IsUUID()
+  taskId?: string;
 }

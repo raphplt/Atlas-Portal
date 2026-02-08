@@ -37,10 +37,14 @@ export function clearAuthCookies(res: Response): void {
   res.clearCookie(REFRESH_COOKIE, opts);
 }
 
-export function readAccessCookie(cookies: Record<string, string>): string | undefined {
+export function readAccessCookie(
+  cookies: Record<string, string>,
+): string | undefined {
   return cookies?.[ACCESS_COOKIE];
 }
 
-export function readRefreshCookie(cookies: Record<string, string>): string | undefined {
+export function readRefreshCookie(
+  cookies: Record<string, string>,
+): string | undefined {
   return cookies?.[REFRESH_COOKIE];
 }

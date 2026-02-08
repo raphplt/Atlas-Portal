@@ -48,7 +48,9 @@ export class CreateUploadUrlDto {
 
   @IsString()
   @MaxLength(255)
-  @Matches(/^[^/\\]+$/, { message: 'File name must not contain path separators' })
+  @Matches(/^[^/\\]+$/, {
+    message: 'File name must not contain path separators',
+  })
   originalName!: string;
 
   @IsString()
@@ -69,6 +71,10 @@ export class CreateUploadUrlDto {
   @IsOptional()
   @IsUUID()
   ticketId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  taskId?: string;
 
   @IsOptional()
   @IsUUID()

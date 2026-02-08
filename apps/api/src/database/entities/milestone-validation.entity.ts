@@ -50,10 +50,19 @@ export class MilestoneValidationEntity {
   @JoinColumn({ name: 'validated_by_admin_id' })
   validatedByAdmin?: UserEntity | null;
 
-  @Column({ type: 'timestamptz', name: 'validated_by_admin_at', nullable: true })
+  @Column({
+    type: 'timestamptz',
+    name: 'validated_by_admin_at',
+    nullable: true,
+  })
   validatedByAdminAt?: Date | null;
 
-  @Column({ type: 'varchar', length: 500, name: 'admin_comment', nullable: true })
+  @Column({
+    type: 'varchar',
+    length: 500,
+    name: 'admin_comment',
+    nullable: true,
+  })
   adminComment?: string | null;
 
   // --- Client validation ---
@@ -64,10 +73,19 @@ export class MilestoneValidationEntity {
   @JoinColumn({ name: 'validated_by_client_id' })
   validatedByClient?: UserEntity | null;
 
-  @Column({ type: 'timestamptz', name: 'validated_by_client_at', nullable: true })
+  @Column({
+    type: 'timestamptz',
+    name: 'validated_by_client_at',
+    nullable: true,
+  })
   validatedByClientAt?: Date | null;
 
-  @Column({ type: 'varchar', length: 500, name: 'client_comment', nullable: true })
+  @Column({
+    type: 'varchar',
+    length: 500,
+    name: 'client_comment',
+    nullable: true,
+  })
   clientComment?: string | null;
 
   // --- Legacy fields (kept for backward compatibility with existing data) ---

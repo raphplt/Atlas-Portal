@@ -43,7 +43,10 @@ export class FilesController {
     @Body() body: { projectId: string; category?: string },
   ) {
     if (!file) {
-      throw new BadRequestException({ code: 'FILE_NOT_FOUND', message: 'No file provided' });
+      throw new BadRequestException({
+        code: 'FILE_NOT_FOUND',
+        message: 'No file provided',
+      });
     }
     return this.filesService.upload(
       user,

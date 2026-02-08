@@ -14,6 +14,7 @@ import {
   FileAssetEntity,
   FileNoteEntity,
   MessageEntity,
+  TaskEntity,
   TicketEntity,
 } from '../../database/entities';
 import { AuditService } from '../audit/audit.service';
@@ -26,16 +27,24 @@ import { CreateFileNoteDto } from './dto/create-file-note.dto';
 import { FileQueryDto } from './dto/file-query.dto';
 
 const ALLOWED_MIME_TYPES = [
-  'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml',
-  'application/pdf', 'application/msword',
+  'image/jpeg',
+  'image/png',
+  'image/gif',
+  'image/webp',
+  'image/svg+xml',
+  'application/pdf',
+  'application/msword',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   'application/vnd.ms-excel',
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   'application/vnd.ms-powerpoint',
   'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-  'application/zip', 'application/x-zip-compressed',
-  'text/plain', 'text/csv',
-  'video/mp4', 'video/quicktime',
+  'application/zip',
+  'application/x-zip-compressed',
+  'text/plain',
+  'text/csv',
+  'video/mp4',
+  'video/quicktime',
 ];
 
 @Injectable()
@@ -47,6 +56,8 @@ export class FilesService {
     private readonly fileNoteRepository: Repository<FileNoteEntity>,
     @InjectRepository(TicketEntity)
     private readonly ticketRepository: Repository<TicketEntity>,
+    @InjectRepository(TaskEntity)
+    private readonly taskRepository: Repository<TaskEntity>,
     @InjectRepository(MessageEntity)
     private readonly messageRepository: Repository<MessageEntity>,
     private readonly configService: ConfigService,
@@ -95,6 +106,22 @@ export class FilesService {
       }
     }
 
+    if (dto.taskId) {
+      const task = await this.taskRepository.findOne({
+        where: { id: dto.taskId },
+      });
+      if (
+        !task ||
+        task.workspaceId !== user.workspaceId ||
+        task.projectId !== dto.projectId
+      ) {
+        throw new BadRequestException({
+          code: 'FILE_INVALID_REFERENCE',
+          message: 'Task not found or does not belong to this project',
+        });
+      }
+    }
+
     if (dto.messageId) {
       const message = await this.messageRepository.findOne({
         where: { id: dto.messageId },
@@ -123,6 +150,7 @@ export class FilesService {
       contentType: dto.contentType,
       sizeBytes: dto.sizeBytes,
       ticketId: dto.ticketId,
+      taskId: dto.taskId,
       messageId: dto.messageId,
       versionLabel: dto.versionLabel,
       isUploaded: false,
@@ -154,7 +182,12 @@ export class FilesService {
 
   async upload(
     user: AuthUser,
-    file: { buffer: Buffer; mimetype: string; originalname: string; size: number },
+    file: {
+      buffer: Buffer;
+      mimetype: string;
+      originalname: string;
+      size: number;
+    },
     projectId: string,
     category: string,
   ): Promise<FileAssetEntity> {
@@ -185,7 +218,9 @@ export class FilesService {
       });
     }
 
-    const fileCategory = Object.values(FileCategory).includes(category as FileCategory)
+    const fileCategory = Object.values(FileCategory).includes(
+      category as FileCategory,
+    )
       ? (category as FileCategory)
       : FileCategory.OTHER;
 
@@ -270,7 +305,14 @@ export class FilesService {
       qb.andWhere('file.category = :category', { category: query.category });
     }
 
-    const files = await qb.orderBy('file.created_at', 'DESC').limit(query.limit).getMany();
+    if (query.taskId) {
+      qb.andWhere('file.task_id = :taskId', { taskId: query.taskId });
+    }
+
+    const files = await qb
+      .orderBy('file.created_at', 'DESC')
+      .limit(query.limit)
+      .getMany();
 
     if (files.length === 0) return [];
 
@@ -278,13 +320,17 @@ export class FilesService {
       .createQueryBuilder('note')
       .select('note.file_id', 'fileId')
       .addSelect('COUNT(*)', 'count')
-      .where('note.file_id IN (:...fileIds)', { fileIds: files.map(f => f.id) })
+      .where('note.file_id IN (:...fileIds)', {
+        fileIds: files.map((f) => f.id),
+      })
       .groupBy('note.file_id')
       .getRawMany<{ fileId: string; count: string }>();
 
-    const countMap = new Map(noteCounts.map(nc => [nc.fileId, parseInt(nc.count, 10)]));
+    const countMap = new Map(
+      noteCounts.map((nc) => [nc.fileId, parseInt(nc.count, 10)]),
+    );
 
-    return files.map(f => ({
+    return files.map((f) => ({
       ...f,
       noteCount: countMap.get(f.id) ?? 0,
     }));
@@ -371,11 +417,14 @@ export class FilesService {
       take: 100,
     });
 
-    return notes.map(note => ({
+    return notes.map((note) => ({
       id: note.id,
       fileId: note.fileId,
       authorId: note.authorId,
-      authorName: [note.author.firstName, note.author.lastName].filter(Boolean).join(' ') || note.author.email,
+      authorName:
+        [note.author.firstName, note.author.lastName]
+          .filter(Boolean)
+          .join(' ') || note.author.email,
       authorRole: note.author.role,
       content: note.content,
       createdAt: note.createdAt,
@@ -417,7 +466,9 @@ export class FilesService {
   }
 
   async deleteNote(user: AuthUser, noteId: string): Promise<{ success: true }> {
-    const note = await this.fileNoteRepository.findOne({ where: { id: noteId } });
+    const note = await this.fileNoteRepository.findOne({
+      where: { id: noteId },
+    });
 
     if (!note || note.workspaceId !== user.workspaceId) {
       throw new NotFoundException({
@@ -434,7 +485,9 @@ export class FilesService {
       });
     }
 
-    const file = await this.fileRepository.findOne({ where: { id: note.fileId } });
+    const file = await this.fileRepository.findOne({
+      where: { id: note.fileId },
+    });
 
     await this.fileNoteRepository.delete(note.id);
 

@@ -4,6 +4,7 @@ import {
   FileAssetEntity,
   FileNoteEntity,
   MessageEntity,
+  TaskEntity,
   TicketEntity,
 } from '../../database/entities';
 import { AuditModule } from '../audit/audit.module';
@@ -14,7 +15,13 @@ import { FilesService } from './files.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([FileAssetEntity, FileNoteEntity, TicketEntity, MessageEntity]),
+    TypeOrmModule.forFeature([
+      FileAssetEntity,
+      FileNoteEntity,
+      TaskEntity,
+      TicketEntity,
+      MessageEntity,
+    ]),
     ProjectsModule,
     AuditModule,
     StorageModule,

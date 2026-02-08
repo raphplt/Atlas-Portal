@@ -13,6 +13,7 @@ const ERROR_CODE_MAP: Record<string, string> = {
   TICKET_INVALID_TRANSITION: 'apiError.ticketInvalidTransition',
   TICKET_PAYMENT_PENDING: 'apiError.ticketPaymentPending',
   TICKET_INVALID_AMOUNT: 'apiError.ticketInvalidAmount',
+  TICKET_ALREADY_PAID: 'apiError.ticketAlreadyPaid',
 
   // Files
   FILE_NOT_FOUND: 'apiError.fileNotFound',

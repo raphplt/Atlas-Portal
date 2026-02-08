@@ -50,7 +50,10 @@ export class UsersController {
     @CurrentUser() user: AuthUser,
     @Param('id', new ParseUUIDPipe()) clientId: string,
   ): Promise<ClientDetailsPayload> {
-    return this.usersService.getWorkspaceClientDetails(user.workspaceId, clientId);
+    return this.usersService.getWorkspaceClientDetails(
+      user.workspaceId,
+      clientId,
+    );
   }
 
   @Get('me')

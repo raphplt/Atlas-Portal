@@ -1,11 +1,17 @@
 import {
+  IsDateString,
   IsEnum,
   IsOptional,
   IsString,
   IsUUID,
   MaxLength,
 } from 'class-validator';
-import { TaskSource, TaskStatus } from '../../../common/enums';
+import {
+  MilestoneType,
+  TaskPriority,
+  TaskSource,
+  TaskStatus,
+} from '../../../common/enums';
 
 export class CreateTaskDto {
   @IsUUID()
@@ -26,6 +32,18 @@ export class CreateTaskDto {
   @IsOptional()
   @IsEnum(TaskSource)
   source?: TaskSource;
+
+  @IsOptional()
+  @IsEnum(TaskPriority)
+  priority?: TaskPriority;
+
+  @IsOptional()
+  @IsDateString()
+  dueDate?: string;
+
+  @IsOptional()
+  @IsEnum(MilestoneType)
+  milestoneType?: MilestoneType;
 
   @IsOptional()
   @IsString()

@@ -1,10 +1,22 @@
+export type MilestoneTypeKey = 'DESIGN' | 'CONTENT' | 'DELIVERY';
+
+export type ProjectMilestoneTemplate =
+  | 'STANDARD'
+  | 'QUICK_START'
+  | 'CONTENT_FIRST'
+  | 'CUSTOM';
+
 export interface ProjectSummary {
   id: string;
   name: string;
+  clientCompany?: string | null;
+  clientEmail?: string | null;
+  clientWebsite?: string | null;
   description?: string | null;
   status: string;
   progress: number;
   nextAction?: string | null;
+  milestoneTemplate?: ProjectMilestoneTemplate;
   clientId: string;
   createdAt?: string;
   updatedAt?: string;
@@ -15,6 +27,10 @@ export interface ProjectPayload {
   name: string;
   status: string;
   progress: number;
+  clientCompany?: string | null;
+  clientEmail?: string | null;
+  clientWebsite?: string | null;
+  milestoneTemplate?: ProjectMilestoneTemplate;
   nextAction?: string | null;
   description?: string | null;
   clientId: string;
@@ -70,9 +86,27 @@ export interface TaskItem {
   description?: string | null;
   status: string;
   source: string;
+  priority?: string | null;
+  dueDate?: string | null;
+  milestoneType?: string | null;
   blockedReason?: string | null;
   position?: number;
+  checklistTotal: number;
+  checklistDone: number;
   createdAt?: string;
+}
+
+export interface TaskDetail extends TaskItem {
+  files: FileItem[];
+  milestoneValidation?: MilestoneItem | null;
+}
+
+export interface TaskChecklistItem {
+  id: string;
+  taskId: string;
+  title: string;
+  completed: boolean;
+  position: number;
 }
 
 export interface TicketItem {
@@ -198,7 +232,6 @@ export interface ProjectTabNotificationCounts {
   messages: number;
   files: number;
   payments: number;
-  milestones: number;
   activity: number;
   'admin-notes': number;
 }

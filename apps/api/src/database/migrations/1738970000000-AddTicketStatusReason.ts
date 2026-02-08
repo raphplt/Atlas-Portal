@@ -15,4 +15,3 @@ export class AddTicketStatusReason1738970000000 implements MigrationInterface {
     );
   }
 }
-
