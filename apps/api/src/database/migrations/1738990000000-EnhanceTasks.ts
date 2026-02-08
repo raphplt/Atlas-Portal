@@ -15,9 +15,27 @@ export class EnhanceTasks1738990000000 implements MigrationInterface {
       ALTER TABLE "tasks" ADD COLUMN "due_date" TIMESTAMP WITH TIME ZONE
     `);
 
-    // 2) Add MILESTONE to task_source enum
+    // 2) Add MILESTONE to task_source enum in a transaction-safe way.
+    // Postgres can reject ALTER TYPE ... ADD VALUE followed by immediate usage
+    // in the same transaction, so we recreate the enum type instead.
     await queryRunner.query(`
-      ALTER TYPE "task_source_enum" ADD VALUE IF NOT EXISTS 'MILESTONE'
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1
+          FROM pg_enum e
+          JOIN pg_type t ON t.oid = e.enumtypid
+          WHERE t.typname = 'task_source_enum'
+            AND e.enumlabel = 'MILESTONE'
+        ) THEN
+          CREATE TYPE "task_source_enum_new" AS ENUM ('CORE', 'TICKET', 'MILESTONE');
+          ALTER TABLE "tasks"
+            ALTER COLUMN "source" TYPE "task_source_enum_new"
+            USING ("source"::text::"task_source_enum_new");
+          DROP TYPE "task_source_enum";
+          ALTER TYPE "task_source_enum_new" RENAME TO "task_source_enum";
+        END IF;
+      END $$;
     `);
 
     // 3) Add milestone_type column to tasks (reuses existing milestone_type_enum)
