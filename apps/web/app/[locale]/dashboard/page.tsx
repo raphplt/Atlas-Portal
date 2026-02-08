@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/components/providers/auth-provider';
 import { useTranslations } from '@/components/providers/translation-provider';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ProjectSummary, TicketItem } from '@/lib/portal/types';
@@ -18,28 +18,28 @@ import {
   Plus,
   UserPlus,
   ArrowRight,
-  LayoutDashboard,
   Bug,
   HelpCircle,
   Wrench,
   Sparkles,
+  Gauge,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
-type MetricConfig = { icon: typeof FolderKanban; bg: string; iconColor: string; accent: string };
+type MetricConfig = { icon: typeof FolderKanban; cardBg: string; iconBg: string; iconColor: string };
 
 const DEFAULT_METRIC: MetricConfig = {
   icon: FolderKanban,
-  bg: 'bg-primary/10',
+  cardBg: 'bg-primary/5',
+  iconBg: 'bg-primary/10',
   iconColor: 'text-primary',
-  accent: 'border-l-primary',
 };
 
 const METRIC_CONFIGS: MetricConfig[] = [
-  { icon: FolderKanban, bg: 'bg-primary/10', iconColor: 'text-primary', accent: 'border-l-primary' },
-  { icon: Clock, bg: 'bg-accent/10', iconColor: 'text-accent', accent: 'border-l-accent' },
-  { icon: Ticket, bg: 'bg-primary/10', iconColor: 'text-primary', accent: 'border-l-primary/60' },
-  { icon: CheckCircle2, bg: 'bg-primary/10', iconColor: 'text-primary', accent: 'border-l-primary/40' },
+  { icon: FolderKanban, cardBg: 'bg-primary/5', iconBg: 'bg-primary/10', iconColor: 'text-primary' },
+  { icon: Clock, cardBg: 'bg-accent/5', iconBg: 'bg-accent/10', iconColor: 'text-accent' },
+  { icon: Ticket, cardBg: 'bg-blue-500/5', iconBg: 'bg-blue-500/10', iconColor: 'text-blue-600' },
+  { icon: CheckCircle2, cardBg: 'bg-emerald-500/5', iconBg: 'bg-emerald-500/10', iconColor: 'text-emerald-600' },
 ];
 
 const PROJECT_STATUS_BADGE: Record<string, string> = {
@@ -134,7 +134,7 @@ export default function DashboardPage() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="flex items-center gap-3 text-2xl font-semibold">
-            <LayoutDashboard className="h-6 w-6 text-primary" />
+            <Gauge className="h-6 w-6 text-primary" />
             {isAdmin ? t('dashboard.admin.title') : t('dashboard.client.title')}
           </h1>
           <p className="text-sm mt-1 text-muted-foreground">{isAdmin ? t('dashboard.admin.subtitle') : t('dashboard.client.subtitle')}</p>
@@ -164,10 +164,10 @@ export default function DashboardPage() {
       {loading ? (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           {Array.from({ length: 4 }).map((_, i) => (
-            <Card key={i}>
-              <CardHeader>
+            <Card key={i} className="border-0 bg-muted/30 rounded-2xl shadow-none">
+              <CardHeader className="p-6">
                 <Skeleton className="h-4 w-24" />
-                <Skeleton className="mt-2 h-8 w-16" />
+                <Skeleton className="mt-3 h-10 w-16" />
               </CardHeader>
             </Card>
           ))}
@@ -178,15 +178,15 @@ export default function DashboardPage() {
             const config = METRIC_CONFIGS[i] ?? DEFAULT_METRIC;
             const Icon = config.icon;
             return (
-              <Card key={metric.label} className={`border-l-4 ${config.accent} transition-all duration-300 hover:-translate-y-1 hover:shadow-lg`}>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardDescription>{metric.label}</CardDescription>
-                    <div className={`flex items-center justify-center size-10 rounded-full ${config.bg}`}>
+              <Card key={metric.label} className={`border-0 ${config.cardBg} rounded-2xl shadow-none transition-all duration-200 hover:shadow-md`}>
+                <CardHeader className="p-6">
+                  <div className="flex items-start justify-between">
+                    <CardDescription className="text-sm font-medium">{metric.label}</CardDescription>
+                    <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${config.iconBg}`}>
                       <Icon className={`h-5 w-5 ${config.iconColor}`} />
                     </div>
                   </div>
-                  <CardTitle className="text-3xl tabular-nums">{metric.value}</CardTitle>
+                  <CardTitle className="mt-2 text-4xl font-bold tabular-nums tracking-tight">{metric.value}</CardTitle>
                 </CardHeader>
               </Card>
             );
@@ -196,33 +196,33 @@ export default function DashboardPage() {
 
       {/* Content sections */}
       {loading ? (
-        <div className="grid gap-4 xl:grid-cols-2">
+        <div className="grid gap-10 xl:grid-cols-2">
           {Array.from({ length: 2 }).map((_, i) => (
-            <Card key={i}>
-              <CardHeader>
+            <div key={i}>
+              <div className="mb-5 space-y-1">
                 <Skeleton className="h-5 w-40" />
                 <Skeleton className="h-4 w-64" />
-              </CardHeader>
-              <CardContent className="space-y-3">
+              </div>
+              <div className="space-y-3">
                 {Array.from({ length: 3 }).map((_, j) => (
-                  <Skeleton key={j} className="h-24 w-full rounded-lg" />
+                  <Skeleton key={j} className="h-20 w-full rounded-xl" />
                 ))}
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           ))}
         </div>
       ) : (
-        <div className="grid gap-4 xl:grid-cols-2">
+        <div className="grid gap-10 xl:grid-cols-2">
           {/* Recent projects */}
-          <Card className="overflow-hidden border-border/70 shadow-sm">
-            <CardHeader>
-              <CardTitle>{t('dashboard.section.projects')}</CardTitle>
-              <CardDescription>{t('dashboard.section.projectsDescription')}</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3 bg-muted/20">
+          <div>
+            <div className="mb-5">
+              <h3 className="text-base font-semibold text-foreground">{t('dashboard.section.projects')}</h3>
+              <p className="mt-1 text-sm text-muted-foreground">{t('dashboard.section.projectsDescription')}</p>
+            </div>
+            <div className="space-y-3">
               {projects.length === 0 ? (
-                <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border py-12 text-center">
-                  <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+                <div className="flex flex-col items-center justify-center rounded-2xl bg-muted/30 py-12 text-center">
+                  <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-muted">
                     <FolderKanban className="h-6 w-6 text-muted-foreground" />
                   </div>
                   <p className="text-sm text-muted-foreground">{t('dashboard.empty')}</p>
@@ -230,44 +230,46 @@ export default function DashboardPage() {
               ) : null}
               {projects.slice(0, 8).map((project) => {
                 const badgeClass = PROJECT_STATUS_BADGE[project.status] ?? '';
+                const statusAccent = project.status === 'WAITING_CLIENT' ? 'bg-accent' : project.status === 'COMPLETED' ? 'bg-emerald-500' : 'bg-primary';
                 return (
                   <Link
                     key={project.id}
-                    className="group block rounded-xl border border-border/80 bg-card p-4 transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className="group relative block overflow-hidden rounded-xl border border-border/40 bg-card p-4 pl-5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     href={`/${locale}/projects/${project.id}/overview`}
                     aria-label={`${t('project.open')}: ${project.name}`}
                   >
-                    <div className="mb-2 flex items-center justify-between gap-2">
-                      <p className="line-clamp-1 font-medium text-foreground">{project.name}</p>
+                    <div className={`absolute inset-y-0 left-0 w-1 ${statusAccent}`} />
+
+                    <div className="mb-3 flex items-center justify-between gap-2">
+                      <p className="line-clamp-1 text-sm font-semibold text-foreground">{project.name}</p>
                       <Badge className={badgeClass}>{t(`status.project.${project.status}`)}</Badge>
                     </div>
 
-                    <div className="mb-2 flex items-center gap-3">
+                    <div className="mb-3 flex items-center gap-3">
                       <Progress value={project.progress} className="h-1.5 flex-1" />
                       <span className="text-xs font-medium tabular-nums text-muted-foreground">{project.progress}%</span>
                     </div>
 
-                    <p className="text-xs text-muted-foreground">{project.nextAction ?? t('project.nextActionFallback')}</p>
-                    <div className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-primary">
-                      {t('project.open')}
-                      <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs text-muted-foreground line-clamp-1 flex-1">{project.nextAction ?? t('project.nextActionFallback')}</p>
+                      <ArrowRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/40 transition-all group-hover:text-primary group-hover:translate-x-0.5" />
                     </div>
                   </Link>
                 );
               })}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
           {/* Recent tickets */}
-          <Card className="overflow-hidden border-border/70 shadow-sm">
-            <CardHeader>
-              <CardTitle>{t('dashboard.section.tickets')}</CardTitle>
-              <CardDescription>{t('dashboard.section.ticketsDescription')}</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3 bg-muted/20">
+          <div>
+            <div className="mb-5">
+              <h3 className="text-base font-semibold text-foreground">{t('dashboard.section.tickets')}</h3>
+              <p className="mt-1 text-sm text-muted-foreground">{t('dashboard.section.ticketsDescription')}</p>
+            </div>
+            <div className="space-y-3">
               {tickets.length === 0 ? (
-                <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border py-12 text-center">
-                  <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+                <div className="flex flex-col items-center justify-center rounded-2xl bg-muted/30 py-12 text-center">
+                  <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-muted">
                     <Ticket className="h-6 w-6 text-muted-foreground" />
                   </div>
                   <p className="text-sm text-muted-foreground">{t('tickets.empty')}</p>
@@ -281,37 +283,35 @@ export default function DashboardPage() {
                 return (
                   <Link
                     key={ticket.id}
-                    className="group block rounded-xl border border-border/80 bg-card p-4 transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className="group flex items-center gap-3 rounded-xl border border-border/40 bg-card p-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     href={`/${locale}/projects/${ticket.projectId}/tickets`}
                     aria-label={`${t('dashboard.openTicketModule')}: ${ticket.title}`}
                   >
-                    <div className="mb-2 flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted/60">
-                          <TypeIcon className={`h-3.5 w-3.5 ${typeColor}`} />
-                        </div>
-                        <p className="line-clamp-1 font-medium text-foreground">{ticket.title}</p>
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-muted/60">
+                      <TypeIcon className={`h-4 w-4 ${typeColor}`} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="line-clamp-1 text-sm font-semibold text-foreground">{ticket.title}</p>
+                        <Badge className={`shrink-0 ${statusBadgeClass}`}>{t(`status.ticket.${ticket.status}`)}</Badge>
                       </div>
-                      <Badge className={statusBadgeClass}>{t(`status.ticket.${ticket.status}`)}</Badge>
+                      <div className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <span>{t(`status.ticketType.${ticket.type}`)}</span>
+                        <span className="text-border">·</span>
+                        <span>
+                          {new Date(ticket.createdAt).toLocaleDateString(locale, {
+                            day: 'numeric',
+                            month: 'short',
+                          })}
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex items-center justify-between pl-9">
-                      <p className="text-xs text-muted-foreground">{t(`status.ticketType.${ticket.type}`)}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {new Date(ticket.createdAt).toLocaleDateString(locale, {
-                          day: 'numeric',
-                          month: 'short',
-                        })}
-                      </p>
-                    </div>
-                    <div className="mt-3 inline-flex items-center gap-1 pl-9 text-sm font-medium text-primary">
-                      {t('dashboard.openTicketModule')}
-                      <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
-                    </div>
+                    <ArrowRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/40 transition-all group-hover:text-primary group-hover:translate-x-0.5" />
                   </Link>
                 );
               })}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
       )}
     </section>

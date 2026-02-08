@@ -1,4 +1,7 @@
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
   S3Client,
@@ -38,6 +41,27 @@ export class StorageService {
         secretAccessKey,
       },
     });
+  }
+
+  async uploadFile(
+    key: string,
+    body: Buffer,
+    contentType: string,
+  ): Promise<void> {
+    if (!this.s3Client || !this.bucket) {
+      throw new InternalServerErrorException(
+        'Cloudflare R2 configuration is missing',
+      );
+    }
+
+    await this.s3Client.send(
+      new PutObjectCommand({
+        Bucket: this.bucket,
+        Key: key,
+        Body: body,
+        ContentType: contentType,
+      }),
+    );
   }
 
   async createSignedUploadUrl(input: UploadUrlInput): Promise<string> {

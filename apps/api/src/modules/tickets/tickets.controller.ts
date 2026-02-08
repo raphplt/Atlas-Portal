@@ -18,6 +18,7 @@ import type { AuthUser } from '../../common/types/auth-user.type';
 import { CreateTicketDto } from './dto/create-ticket.dto';
 import { RequestPaymentDto } from './dto/request-payment.dto';
 import { TicketActionDto } from './dto/ticket-action.dto';
+import { TicketPaginatedQueryDto } from './dto/ticket-paginated-query.dto';
 import { TicketQueryDto } from './dto/ticket-query.dto';
 import { TicketsService } from './tickets.service';
 
@@ -29,6 +30,14 @@ export class TicketsController {
   @Get()
   list(@CurrentUser() user: AuthUser, @Query() query: TicketQueryDto) {
     return this.ticketsService.list(user, query);
+  }
+
+  @Get('paginated')
+  listPaginated(
+    @CurrentUser() user: AuthUser,
+    @Query() query: TicketPaginatedQueryDto,
+  ) {
+    return this.ticketsService.listPaginated(user, query);
   }
 
   @Get(':id')

@@ -43,15 +43,15 @@ export function ProjectOverview({ locale, projectId, dashboard }: ProjectOvervie
   return (
     <div className="space-y-6">
       {/* Project vitals */}
-      <Card>
-        <CardContent className="space-y-5 p-5">
+      <Card className="overflow-hidden rounded-2xl">
+        <CardContent className="space-y-6 p-6">
           {/* Progress bar */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between text-sm">
-              <span className="font-medium text-foreground">{t('project.progress')}</span>
-              <span className="font-semibold tabular-nums text-foreground">{project.progress}%</span>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-muted-foreground">{t('project.progress')}</span>
+              <span className="text-2xl font-bold tabular-nums text-foreground">{project.progress}%</span>
             </div>
-            <Progress value={project.progress} className="h-2.5" />
+            <Progress value={project.progress} className="h-3" />
             <p className="text-xs text-muted-foreground">
               {summary.doneTasks}/{summary.totalTasks} {t('project.overview.tasksDone')}
             </p>
@@ -59,11 +59,15 @@ export function ProjectOverview({ locale, projectId, dashboard }: ProjectOvervie
 
           {/* Next action callout */}
           {project.nextAction ? (
-            <div className="flex items-start gap-3 rounded-lg border border-accent/30 bg-accent/5 p-3">
-              <Zap className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
-              <div>
-                <p className="text-xs font-medium uppercase tracking-wide text-accent">{t('project.nextAction')}</p>
-                <p className="mt-0.5 text-sm text-foreground">{project.nextAction}</p>
+            <div className="rounded-xl bg-accent/[0.07] p-4">
+              <div className="flex items-start gap-3">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent/15">
+                  <Zap className="h-4 w-4 text-accent" />
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-accent">{t('project.nextAction')}</p>
+                  <p className="mt-1 text-sm text-foreground">{project.nextAction}</p>
+                </div>
               </div>
             </div>
           ) : null}
@@ -106,56 +110,56 @@ export function ProjectOverview({ locale, projectId, dashboard }: ProjectOvervie
       <div className="grid gap-4 md:grid-cols-3">
         <Link
           href={`/${locale}/projects/${projectId}/tasks`}
-          className="group block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="group block rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          <Card className="border-l-4 border-l-primary transition-all hover:-translate-y-0.5 hover:shadow-md">
-            <CardContent className="flex items-center gap-4 p-4">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10">
+          <Card className="border-0 bg-primary/5 rounded-2xl shadow-none transition-all duration-200 hover:shadow-md">
+            <CardContent className="flex items-center gap-4 p-5">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10">
                 <ClipboardList className="h-5 w-5 text-primary" />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-xs text-muted-foreground">{t('project.section.tasks')}</p>
-                <p className="text-2xl font-semibold tabular-nums text-foreground">{summary.totalTasks}</p>
+                <p className="text-xs font-medium text-muted-foreground">{t('project.section.tasks')}</p>
+                <p className="mt-0.5 text-2xl font-bold tabular-nums text-foreground">{summary.totalTasks}</p>
               </div>
-              <ArrowRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+              <ArrowRight className="h-4 w-4 text-muted-foreground/40 transition-all group-hover:text-primary group-hover:translate-x-0.5" />
             </CardContent>
           </Card>
         </Link>
 
         <Link
           href={`/${locale}/projects/${projectId}/tasks`}
-          className="group block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="group block rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          <Card className="border-l-4 border-l-emerald-500 transition-all hover:-translate-y-0.5 hover:shadow-md">
-            <CardContent className="flex items-center gap-4 p-4">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100">
+          <Card className="border-0 bg-emerald-500/5 rounded-2xl shadow-none transition-all duration-200 hover:shadow-md">
+            <CardContent className="flex items-center gap-4 p-5">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10">
                 <CheckCircle2 className="h-5 w-5 text-emerald-600" />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-xs text-muted-foreground">{t('project.tasks.done')}</p>
-                <p className="text-2xl font-semibold tabular-nums text-foreground">
+                <p className="text-xs font-medium text-muted-foreground">{t('project.tasks.done')}</p>
+                <p className="mt-0.5 text-2xl font-bold tabular-nums text-foreground">
                   {summary.doneTasks}<span className="text-base font-normal text-muted-foreground">/{summary.totalTasks}</span>
                 </p>
               </div>
-              <ArrowRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+              <ArrowRight className="h-4 w-4 text-muted-foreground/40 transition-all group-hover:text-primary group-hover:translate-x-0.5" />
             </CardContent>
           </Card>
         </Link>
 
         <Link
           href={`/${locale}/projects/${projectId}/tasks`}
-          className="group block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="group block rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          <Card className={`border-l-4 transition-all hover:-translate-y-0.5 hover:shadow-md ${summary.blockedTasks > 0 ? 'border-l-destructive' : 'border-l-muted-foreground/30'}`}>
-            <CardContent className="flex items-center gap-4 p-4">
-              <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${summary.blockedTasks > 0 ? 'bg-destructive/10' : 'bg-muted'}`}>
+          <Card className={`border-0 rounded-2xl shadow-none transition-all duration-200 hover:shadow-md ${summary.blockedTasks > 0 ? 'bg-destructive/5' : 'bg-muted/50'}`}>
+            <CardContent className="flex items-center gap-4 p-5">
+              <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${summary.blockedTasks > 0 ? 'bg-destructive/10' : 'bg-muted'}`}>
                 <OctagonAlert className={`h-5 w-5 ${summary.blockedTasks > 0 ? 'text-destructive' : 'text-muted-foreground'}`} />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-xs text-muted-foreground">{t('project.tasks.blocked')}</p>
-                <p className="text-2xl font-semibold tabular-nums text-foreground">{summary.blockedTasks}</p>
+                <p className="text-xs font-medium text-muted-foreground">{t('project.tasks.blocked')}</p>
+                <p className="mt-0.5 text-2xl font-bold tabular-nums text-foreground">{summary.blockedTasks}</p>
               </div>
-              <ArrowRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+              <ArrowRight className="h-4 w-4 text-muted-foreground/40 transition-all group-hover:text-primary group-hover:translate-x-0.5" />
             </CardContent>
           </Card>
         </Link>

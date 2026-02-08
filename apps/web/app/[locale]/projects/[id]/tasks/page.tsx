@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CreateTaskDialog } from '@/components/portal/dialogs/create-task-dialog';
 import {
@@ -25,7 +26,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { getErrorMessage } from '@/lib/api-error';
-import { TaskItem } from '@/lib/portal/types';
+import { TaskItem, TicketItem } from '@/lib/portal/types';
 import { GripVertical } from "lucide-react";
 
 const STATUSES = ['BACKLOG', 'IN_PROGRESS', 'BLOCKED_BY_CLIENT', 'DONE'] as const;
@@ -38,7 +39,21 @@ const STATUS_COLORS: Record<string, string> = {
 	DONE: "border-t-emerald-500",
 };
 
-function TaskCard({ task, isAdmin }: { task: TaskItem; isAdmin: boolean }) {
+function TaskCard({
+	task,
+	isAdmin,
+	linkedTicketId,
+	projectId,
+	locale,
+	isHighlighted,
+}: {
+	task: TaskItem;
+	isAdmin: boolean;
+	linkedTicketId?: string;
+	projectId: string;
+	locale: string;
+	isHighlighted: boolean;
+}) {
 	const { t } = useTranslations();
 	const {
 		attributes,
@@ -59,7 +74,10 @@ function TaskCard({ task, isAdmin }: { task: TaskItem; isAdmin: boolean }) {
 		<div
 			ref={setNodeRef}
 			style={style}
-			className="rounded-md border border-border bg-background p-3 shadow-sm"
+			id={`task-${task.id}`}
+			className={`rounded-md border border-border bg-background p-3 shadow-sm transition-colors ${
+				isHighlighted ? 'ring-2 ring-primary/40' : ''
+			}`}
 		>
 			<div className="flex items-start gap-2">
 				{isAdmin ? (
@@ -80,6 +98,14 @@ function TaskCard({ task, isAdmin }: { task: TaskItem; isAdmin: boolean }) {
 						<Badge className="text-[10px]">
 							{t(`status.taskSource.${task.source}`)}
 						</Badge>
+						{linkedTicketId ? (
+							<Link
+								href={`/${locale}/projects/${projectId}/tickets/${linkedTicketId}`}
+								className="text-[11px] font-medium text-primary hover:underline"
+							>
+								{t('project.task.openTicket')}
+							</Link>
+						) : null}
 					</div>
 					{task.description ? (
 						<p className="mt-1 text-xs text-muted-foreground line-clamp-2">{task.description}</p>
@@ -106,13 +132,15 @@ function TaskCardOverlay({ task }: { task: TaskItem }) {
 }
 
 export default function ProjectTasksPage() {
-	const { projectId, project, error, setError, isAdmin, request } =
+	const { locale, projectId, project, error, setError, isAdmin, request } =
 		useProjectContext();
 	const { t } = useTranslations();
 
 	const [tasks, setTasks] = useState<TaskItem[]>([]);
+	const [ticketByTaskId, setTicketByTaskId] = useState<Record<string, string>>({});
 	const [createOpen, setCreateOpen] = useState(false);
 	const [activeTask, setActiveTask] = useState<TaskItem | null>(null);
+	const [highlightedTaskId, setHighlightedTaskId] = useState<string | null>(null);
 	const pendingReorder = useRef(false);
 
 	const sensors = useSensors(
@@ -121,8 +149,18 @@ export default function ProjectTasksPage() {
 
 	const loadTasks = useCallback(async () => {
 		try {
-			const data = await request<TaskItem[]>(`/tasks?projectId=${projectId}&limit=100`);
-			setTasks(data);
+			const [tasksData, ticketsData] = await Promise.all([
+				request<TaskItem[]>(`/tasks?projectId=${projectId}&limit=100`),
+				request<TicketItem[]>(`/tickets?projectId=${projectId}&limit=100`),
+			]);
+			setTasks(tasksData);
+			const nextTicketByTaskId: Record<string, string> = {};
+			for (const ticket of ticketsData) {
+				if (ticket.convertedTaskId) {
+					nextTicketByTaskId[ticket.convertedTaskId] = ticket.id;
+				}
+			}
+			setTicketByTaskId(nextTicketByTaskId);
 			setError(null);
 		} catch (e) {
 			setError(getErrorMessage(e, t, "project.tasks.loadError"));
@@ -133,6 +171,22 @@ export default function ProjectTasksPage() {
 		if (!project) return;
 		void loadTasks();
 	}, [loadTasks, project]);
+
+	useEffect(() => {
+		function syncHighlightFromHash() {
+			if (!window.location.hash.startsWith('#task-')) return;
+			const taskId = decodeURIComponent(window.location.hash.replace('#task-', ''));
+			if (!taskId) return;
+			setHighlightedTaskId(taskId);
+			window.setTimeout(() => {
+				setHighlightedTaskId((prev) => (prev === taskId ? null : prev));
+			}, 2200);
+		}
+
+		syncHighlightFromHash();
+		window.addEventListener('hashchange', syncHighlightFromHash);
+		return () => window.removeEventListener('hashchange', syncHighlightFromHash);
+	}, []);
 
 	const tasksByStatus = useMemo(() => {
 		const map = new Map<Status, TaskItem[]>();
@@ -295,6 +349,10 @@ export default function ProjectTasksPage() {
 								status={status}
 								tasks={columnTasks}
 								isAdmin={isAdmin}
+								ticketByTaskId={ticketByTaskId}
+								projectId={projectId}
+								locale={locale}
+								highlightedTaskId={highlightedTaskId}
 							/>
 						);
 					})}
@@ -312,10 +370,18 @@ function KanbanColumn({
 	status,
 	tasks,
 	isAdmin,
+	ticketByTaskId,
+	projectId,
+	locale,
+	highlightedTaskId,
 }: {
 	status: Status;
 	tasks: TaskItem[];
 	isAdmin: boolean;
+	ticketByTaskId: Record<string, string>;
+	projectId: string;
+	locale: string;
+	highlightedTaskId: string | null;
 }) {
 	const { t } = useTranslations();
 	const { setNodeRef } = useSortable({
@@ -344,7 +410,15 @@ function KanbanColumn({
 							</p>
 						) : null}
 						{tasks.map((task) => (
-							<TaskCard key={task.id} task={task} isAdmin={isAdmin} />
+							<TaskCard
+								key={task.id}
+								task={task}
+								isAdmin={isAdmin}
+								linkedTicketId={ticketByTaskId[task.id]}
+								projectId={projectId}
+								locale={locale}
+								isHighlighted={highlightedTaskId === task.id}
+							/>
 						))}
 					</SortableContext>
 				</div>

@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, SelectQueryBuilder } from 'typeorm';
 import { PaymentStatus, TicketStatus, UserRole } from '../../common/enums';
 import type { AuthUser } from '../../common/types/auth-user.type';
 import {
@@ -21,6 +21,11 @@ import { TasksService } from '../tasks/tasks.service';
 import { CreateTicketDto } from './dto/create-ticket.dto';
 import { RequestPaymentDto } from './dto/request-payment.dto';
 import { TicketActionDto } from './dto/ticket-action.dto';
+import {
+  TicketPaginatedQueryDto,
+  TicketSortBy,
+  TicketViewFilter,
+} from './dto/ticket-paginated-query.dto';
 import { TicketQueryDto } from './dto/ticket-query.dto';
 
 /** Valid status transitions for ticket actions. */
@@ -37,6 +42,36 @@ const ALLOWED_REQUEST_PAYMENT_FROM = [
   TicketStatus.ACCEPTED,
 ];
 const ALLOWED_CONVERT_FROM = [TicketStatus.ACCEPTED, TicketStatus.PAID];
+const ACTION_REQUIRED_ADMIN_STATUSES = [
+  TicketStatus.OPEN,
+  TicketStatus.NEEDS_INFO,
+  TicketStatus.ACCEPTED,
+];
+const ACTION_REQUIRED_CLIENT_STATUSES = [
+  TicketStatus.NEEDS_INFO,
+  TicketStatus.PAYMENT_REQUIRED,
+];
+const CLOSED_STATUSES = [
+  TicketStatus.REJECTED,
+  TicketStatus.CONVERTED,
+  TicketStatus.PAID,
+];
+
+export interface PaginatedTicketsResult {
+  items: TicketEntity[];
+  pagination: {
+    page: number;
+    pageSize: number;
+    total: number;
+    totalPages: number;
+  };
+  summary: {
+    total: number;
+    actionRequired: number;
+    paymentRequired: number;
+    closed: number;
+  };
+}
 
 @Injectable()
 export class TicketsService {
@@ -56,16 +91,101 @@ export class TicketsService {
   ) {}
 
   async list(user: AuthUser, query: TicketQueryDto): Promise<TicketEntity[]> {
+    const qb = this.buildListQuery(user, query);
+    qb.orderBy('ticket.created_at', 'DESC').limit(query.limit);
+
+    return qb.getMany();
+  }
+
+  async listPaginated(
+    user: AuthUser,
+    query: TicketPaginatedQueryDto,
+  ): Promise<PaginatedTicketsResult> {
+    const page = Math.max(1, query.page);
+    const pageSize = query.pageSize;
+    const baseQb = this.buildListQuery(user, query);
+    const filteredQb = this.applyViewFilter(
+      baseQb.clone(),
+      query.view,
+      user.role,
+    );
+
+    this.applySort(filteredQb, query.sortBy, user.role);
+    filteredQb.skip((page - 1) * pageSize).take(pageSize);
+
+    const [items, total] = await filteredQb.getManyAndCount();
+    const totalPages = Math.max(1, Math.ceil(total / pageSize));
+    const actionRequiredStatuses =
+      user.role === UserRole.ADMIN
+        ? ACTION_REQUIRED_ADMIN_STATUSES
+        : ACTION_REQUIRED_CLIENT_STATUSES;
+
+    const [
+      summaryTotal,
+      summaryActionRequired,
+      summaryPaymentRequired,
+      summaryClosed,
+    ] = await Promise.all([
+      baseQb.clone().getCount(),
+      baseQb
+        .clone()
+        .andWhere('ticket.status IN (:...statuses)', {
+          statuses: actionRequiredStatuses,
+        })
+        .getCount(),
+      baseQb
+        .clone()
+        .andWhere('ticket.status = :status', {
+          status: TicketStatus.PAYMENT_REQUIRED,
+        })
+        .getCount(),
+      baseQb
+        .clone()
+        .andWhere('ticket.status IN (:...statuses)', {
+          statuses: CLOSED_STATUSES,
+        })
+        .getCount(),
+    ]);
+
+    return {
+      items,
+      pagination: {
+        page,
+        pageSize,
+        total,
+        totalPages,
+      },
+      summary: {
+        total: summaryTotal,
+        actionRequired: summaryActionRequired,
+        paymentRequired: summaryPaymentRequired,
+        closed: summaryClosed,
+      },
+    };
+  }
+
+  private buildListQuery(
+    user: AuthUser,
+    query: TicketQueryDto,
+  ): SelectQueryBuilder<TicketEntity> {
     const qb = this.ticketRepository.createQueryBuilder('ticket');
 
-    qb.innerJoin(ProjectEntity, 'project', 'project.id = ticket.project_id');
     qb.where('ticket.workspace_id = :workspaceId', {
       workspaceId: user.workspaceId,
     });
     qb.andWhere('ticket.is_deleted = false');
 
     if (user.role === UserRole.CLIENT) {
-      qb.andWhere('project.client_id = :clientId', { clientId: user.id });
+      qb.andWhere(
+        `EXISTS (
+          SELECT 1
+          FROM projects project
+          WHERE project.id = ticket.project_id
+            AND project.workspace_id = :workspaceId
+            AND project.client_id = :clientId
+        )`,
+        { clientId: user.id },
+      );
     }
 
     if (query.projectId) {
@@ -84,16 +204,102 @@ export class TicketsService {
 
     if (query.search) {
       qb.andWhere(
-        '(ticket.title ILIKE :search OR ticket.description ILIKE :search)',
+        '(ticket.title ILIKE :search OR ticket.description ILIKE :search OR ticket.status_reason ILIKE :search)',
         {
           search: `%${query.search}%`,
         },
       );
     }
 
-    qb.orderBy('ticket.created_at', 'DESC').limit(query.limit);
+    return qb;
+  }
 
-    return qb.getMany();
+  private applyViewFilter(
+    qb: SelectQueryBuilder<TicketEntity>,
+    view: TicketViewFilter,
+    role: UserRole,
+  ): SelectQueryBuilder<TicketEntity> {
+    if (view === TicketViewFilter.PAYMENT_REQUIRED) {
+      qb.andWhere('ticket.status = :status', {
+        status: TicketStatus.PAYMENT_REQUIRED,
+      });
+      return qb;
+    }
+
+    if (view === TicketViewFilter.CLOSED) {
+      qb.andWhere('ticket.status IN (:...statuses)', {
+        statuses: CLOSED_STATUSES,
+      });
+      return qb;
+    }
+
+    if (view === TicketViewFilter.ACTION_REQUIRED) {
+      qb.andWhere('ticket.status IN (:...statuses)', {
+        statuses:
+          role === UserRole.ADMIN
+            ? ACTION_REQUIRED_ADMIN_STATUSES
+            : ACTION_REQUIRED_CLIENT_STATUSES,
+      });
+    }
+
+    return qb;
+  }
+
+  private applySort(
+    qb: SelectQueryBuilder<TicketEntity>,
+    sortBy: TicketSortBy,
+    role: UserRole,
+  ): void {
+    if (sortBy === TicketSortBy.NEWEST) {
+      qb.orderBy('ticket.created_at', 'DESC');
+      return;
+    }
+
+    if (sortBy === TicketSortBy.OLDEST) {
+      qb.orderBy('ticket.created_at', 'ASC');
+      return;
+    }
+
+    if (sortBy === TicketSortBy.AMOUNT_DESC) {
+      qb.orderBy('ticket.price_cents', 'DESC').addOrderBy(
+        'ticket.created_at',
+        'DESC',
+      );
+      return;
+    }
+
+    if (sortBy === TicketSortBy.AMOUNT_ASC) {
+      qb.orderBy('ticket.price_cents', 'ASC').addOrderBy(
+        'ticket.created_at',
+        'DESC',
+      );
+      return;
+    }
+
+    const priorityOrder =
+      role === UserRole.ADMIN
+        ? `CASE ticket.status
+             WHEN '${TicketStatus.OPEN}' THEN 0
+             WHEN '${TicketStatus.NEEDS_INFO}' THEN 1
+             WHEN '${TicketStatus.ACCEPTED}' THEN 2
+             WHEN '${TicketStatus.PAYMENT_REQUIRED}' THEN 3
+             WHEN '${TicketStatus.PAID}' THEN 4
+             WHEN '${TicketStatus.CONVERTED}' THEN 5
+             WHEN '${TicketStatus.REJECTED}' THEN 6
+             ELSE 999
+           END`
+        : `CASE ticket.status
+             WHEN '${TicketStatus.NEEDS_INFO}' THEN 0
+             WHEN '${TicketStatus.PAYMENT_REQUIRED}' THEN 1
+             WHEN '${TicketStatus.OPEN}' THEN 2
+             WHEN '${TicketStatus.ACCEPTED}' THEN 3
+             WHEN '${TicketStatus.CONVERTED}' THEN 4
+             WHEN '${TicketStatus.PAID}' THEN 5
+             WHEN '${TicketStatus.REJECTED}' THEN 6
+             ELSE 999
+           END`;
+
+    qb.orderBy(priorityOrder, 'ASC').addOrderBy('ticket.created_at', 'DESC');
   }
 
   async getById(user: AuthUser, ticketId: string): Promise<TicketEntity> {

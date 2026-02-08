@@ -78,15 +78,39 @@ export interface TaskItem {
 export interface TicketItem {
   id: string;
   projectId: string;
+  createdById?: string;
   title: string;
   description: string;
   status: string;
   type: string;
   requiresPayment: boolean;
   priceCents?: number | null;
+  currency?: string;
   paymentDescription?: string | null;
   statusReason?: string | null;
+  convertedTaskId?: string | null;
   createdAt: string;
+  updatedAt?: string;
+}
+
+export type TicketViewFilter = 'ALL' | 'ACTION_REQUIRED' | 'PAYMENT_REQUIRED' | 'CLOSED';
+
+export type TicketSortBy = 'PRIORITY' | 'NEWEST' | 'OLDEST' | 'AMOUNT_DESC' | 'AMOUNT_ASC';
+
+export interface PaginatedTicketsPayload {
+  items: TicketItem[];
+  pagination: {
+    page: number;
+    pageSize: number;
+    total: number;
+    totalPages: number;
+  };
+  summary: {
+    total: number;
+    actionRequired: number;
+    paymentRequired: number;
+    closed: number;
+  };
 }
 
 export interface MessageItem {
@@ -106,6 +130,17 @@ export interface FileItem {
   versionLabel?: string | null;
   isUploaded: boolean;
   isDeleted: boolean;
+  noteCount: number;
+  createdAt: string;
+}
+
+export interface FileNoteItem {
+  id: string;
+  fileId: string;
+  authorId: string;
+  authorName: string;
+  authorRole: string;
+  content: string;
   createdAt: string;
 }
 

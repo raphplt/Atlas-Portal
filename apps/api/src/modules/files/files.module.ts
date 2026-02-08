@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import {
   FileAssetEntity,
+  FileNoteEntity,
   MessageEntity,
   TicketEntity,
 } from '../../database/entities';
@@ -13,7 +14,7 @@ import { FilesService } from './files.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([FileAssetEntity, TicketEntity, MessageEntity]),
+    TypeOrmModule.forFeature([FileAssetEntity, FileNoteEntity, TicketEntity, MessageEntity]),
     ProjectsModule,
     AuditModule,
     StorageModule,
