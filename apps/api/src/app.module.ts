@@ -58,7 +58,7 @@ import { WorkspacesModule } from './modules/workspaces/workspaces.module';
           database: configService.get<string>('DATABASE_NAME'),
           ssl: sslEnabled ? { rejectUnauthorized: true } : false,
           entities: ENTITIES,
-          synchronize: isDevelopment,
+          synchronize: true,
           logging: isDevelopment,
         };
       },

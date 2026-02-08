@@ -28,7 +28,7 @@ export const dataSourceOptions: DataSourceOptions = {
       ? 'src/database/migrations/*.ts'
       : 'dist/database/migrations/*.js',
   ],
-  synchronize: isDevelopment,
+  synchronize: true,
   logging: isDevelopment,
 };
 
