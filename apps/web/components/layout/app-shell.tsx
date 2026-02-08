@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { AuthProvider, useAuth } from '@/components/providers/auth-provider';
 import { Locale } from '@/lib/i18n/config';
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
+import { Toaster } from '@/components/ui/sonner';
 import { AppSidebar } from './app-sidebar';
 import { Header } from './header';
 
@@ -38,6 +39,7 @@ export function AppShell({ children, locale }: { children: ReactNode; locale: Lo
   return (
     <AuthProvider>
       <ShellBody locale={locale}>{children}</ShellBody>
+      <Toaster />
     </AuthProvider>
   );
 }

@@ -27,6 +27,7 @@ import {
   TicketEntity,
   UserEntity,
 } from '../../database/entities';
+import { escapeIlike } from '../../common/utils/search.util';
 import { AuditService } from '../audit/audit.service';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { ProjectQueryDto } from './dto/project-query.dto';
@@ -153,7 +154,7 @@ export class ProjectsService {
           )
         `,
         {
-          search: `%${query.search}%`,
+          search: `%${escapeIlike(query.search)}%`,
         },
       );
     }

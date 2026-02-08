@@ -16,6 +16,7 @@ import {
   UserEntity,
   WorkspaceEntity,
 } from '../../database/entities';
+import { escapeIlike } from '../../common/utils/search.util';
 import { AuditService } from '../audit/audit.service';
 import { AuthService } from '../auth/auth.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -57,7 +58,7 @@ export class InvitationsService {
       qb.andWhere(
         '(invitation.email ILIKE :search OR invitation.first_name ILIKE :search OR invitation.last_name ILIKE :search)',
         {
-          search: `%${query.search}%`,
+          search: `%${escapeIlike(query.search)}%`,
         },
       );
     }

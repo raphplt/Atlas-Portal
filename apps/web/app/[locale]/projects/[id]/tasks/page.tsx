@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ConfirmDialog } from '@/components/portal/dialogs/confirm-dialog';
 import { CreateTaskDialog } from '@/components/portal/dialogs/create-task-dialog';
 import { KanbanColumn } from '@/components/portal/tasks/kanban-column';
 import { TaskCardOverlay } from '@/components/portal/tasks/task-card';
@@ -21,6 +22,7 @@ import { useTranslations } from '@/components/providers/translation-provider';
 import { Button } from '@/components/ui/button';
 import { getErrorMessage } from '@/lib/api-error';
 import { TaskItem, TicketItem } from '@/lib/portal/types';
+import { toast } from 'sonner';
 
 const STATUSES = ['BACKLOG', 'IN_PROGRESS', 'BLOCKED_BY_CLIENT', 'DONE'] as const;
 type Status = (typeof STATUSES)[number];
@@ -38,6 +40,7 @@ export default function ProjectTasksPage() {
   const [highlightedTaskId, setHighlightedTaskId] = useState<string | null>(null);
   const [selectedTask, setSelectedTask] = useState<TaskItem | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const pendingReorder = useRef(false);
 
   const sensors = useSensors(
@@ -210,13 +213,14 @@ export default function ProjectTasksPage() {
     setCreateOpen(true);
   }
 
-  async function handleDeleteTask(taskId: string) {
-    if (!confirm(t('project.task.deleteConfirm'))) return;
+  async function handleConfirmDelete() {
+    if (!deleteTarget) return;
     try {
-      await request(`/tasks/${taskId}`, { method: 'DELETE' });
-      setTasks((prev) => prev.filter((t) => t.id !== taskId));
-    } catch {
-      // silently fail
+      await request(`/tasks/${deleteTarget}`, { method: 'DELETE' });
+      setTasks((prev) => prev.filter((t) => t.id !== deleteTarget));
+      setDeleteTarget(null);
+    } catch (e) {
+      toast.error(getErrorMessage(e, t, 'project.task.deleteError'));
     }
   }
 
@@ -224,6 +228,16 @@ export default function ProjectTasksPage() {
 
   return (
     <>
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
+        title={t('project.task.deleteTitle')}
+        description={t('project.task.deleteConfirm')}
+        cancelLabel={t('common.cancel')}
+        confirmLabel={t('common.delete')}
+        onConfirm={() => void handleConfirmDelete()}
+      />
+
       {isAdmin ? (
         <div className="mb-4 flex justify-end">
           <Button onClick={() => { setCreateDefaultStatus(undefined); setCreateOpen(true); }}>
@@ -262,7 +276,7 @@ export default function ProjectTasksPage() {
                 locale={locale}
                 highlightedTaskId={highlightedTaskId}
                 onTaskClick={handleTaskClick}
-                onTaskDelete={isAdmin ? (id) => void handleDeleteTask(id) : undefined}
+                onTaskDelete={isAdmin ? (id) => setDeleteTarget(id) : undefined}
                 onAddTask={isAdmin ? handleAddTask : undefined}
               />
             );

@@ -21,7 +21,7 @@ export const dataSourceOptions: DataSourceOptions = {
   username: configService.get<string>('DATABASE_USER'),
   password: configService.get<string>('DATABASE_PASSWORD'),
   database: configService.get<string>('DATABASE_NAME'),
-  ssl: sslEnabled ? { rejectUnauthorized: false } : false,
+  ssl: sslEnabled ? { rejectUnauthorized: true } : false,
   entities: ENTITIES,
   migrations: [
     isTypeScriptRuntime

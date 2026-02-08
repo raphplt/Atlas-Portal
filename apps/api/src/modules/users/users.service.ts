@@ -6,6 +6,7 @@ import {
   ProjectStatus,
   UserRole,
 } from '../../common/enums';
+import { escapeIlike } from '../../common/utils/search.util';
 import {
   ClientInvitationEntity,
   ProjectEntity,
@@ -104,7 +105,7 @@ export class UsersService {
       qb.andWhere(
         '(user.email ILIKE :search OR user."firstName" ILIKE :search OR user."lastName" ILIKE :search)',
         {
-          search: `%${options.search}%`,
+          search: `%${escapeIlike(options.search)}%`,
         },
       );
     }

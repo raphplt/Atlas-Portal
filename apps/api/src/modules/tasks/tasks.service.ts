@@ -14,6 +14,7 @@ import {
   TaskChecklistItemEntity,
   TaskEntity,
 } from '../../database/entities';
+import { escapeIlike } from '../../common/utils/search.util';
 import { AuditService } from '../audit/audit.service';
 import { ProjectsService } from '../projects/projects.service';
 import { CreateChecklistItemDto } from './dto/create-checklist-item.dto';
@@ -70,7 +71,7 @@ export class TasksService {
       qb.andWhere(
         '(task.title ILIKE :search OR task.description ILIKE :search)',
         {
-          search: `%${query.search}%`,
+          search: `%${escapeIlike(query.search)}%`,
         },
       );
     }

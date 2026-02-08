@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
+import { ConfirmDialog } from '@/components/portal/dialogs/confirm-dialog';
 import { CreateTicketDialog } from '@/components/portal/dialogs/create-ticket-dialog';
 import { TicketActionDialog } from '@/components/portal/dialogs/ticket-action-dialog';
 import { useProjectContext } from '@/components/portal/project-context';
@@ -120,6 +121,7 @@ export default function ProjectTicketsPage() {
   const [summary, setSummary] = useState<PaginatedTicketsPayload['summary']>(EMPTY_TICKET_SUMMARY);
   const [pagination, setPagination] = useState<PaginatedTicketsPayload['pagination']>(EMPTY_TICKET_PAGINATION);
   const [paymentDrafts, setPaymentDrafts] = useState<Record<string, PaymentDraft>>({});
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [actionDialog, setActionDialog] = useState<{
     open: boolean;
     action: 'reject' | 'needs-info';
@@ -187,11 +189,11 @@ export default function ProjectTicketsPage() {
     }
   }
 
-  async function deleteTicket(ticketId: string) {
-    if (!window.confirm(t('project.ticket.deleteConfirm'))) return;
-
+  async function handleConfirmDelete() {
+    if (!deleteTarget) return;
     try {
-      await request(`/tickets/${ticketId}`, { method: 'DELETE' });
+      await request(`/tickets/${deleteTarget}`, { method: 'DELETE' });
+      setDeleteTarget(null);
       await loadTickets();
     } catch (e) {
       setError(getErrorMessage(e, t, 'project.tickets.actionError'));
@@ -294,6 +296,16 @@ export default function ProjectTicketsPage() {
 
   return (
     <>
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
+        title={t('project.ticket.deleteTitle')}
+        description={t('project.ticket.deleteConfirm')}
+        cancelLabel={t('common.cancel')}
+        confirmLabel={t('common.delete')}
+        onConfirm={() => void handleConfirmDelete()}
+      />
+
       <CreateTicketDialog open={createOpen} onOpenChange={setCreateOpen} onSuccess={() => void loadTickets()} />
 
       <TicketActionDialog
@@ -312,7 +324,7 @@ export default function ProjectTicketsPage() {
             <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
               <button
                 type="button"
-                className={`min-h-[74px] rounded-lg border px-3 py-2 text-left transition-colors ${
+                className={`min-h-18.5 rounded-lg border px-3 py-2 text-left transition-colors ${
                   viewFilter === 'ALL' ? 'border-primary/40 bg-primary/5' : 'border-border/70 bg-background'
                 }`}
                 onClick={() => {
@@ -327,7 +339,7 @@ export default function ProjectTicketsPage() {
               </button>
               <button
                 type="button"
-                className={`min-h-[74px] rounded-lg border px-3 py-2 text-left transition-colors ${
+                className={`min-h-18.5 rounded-lg border px-3 py-2 text-left transition-colors ${
                   viewFilter === 'ACTION_REQUIRED' ? 'border-primary/40 bg-primary/5' : 'border-border/70 bg-background'
                 }`}
                 onClick={() => toggleViewFilter('ACTION_REQUIRED')}
@@ -339,7 +351,7 @@ export default function ProjectTicketsPage() {
               </button>
               <button
                 type="button"
-                className={`min-h-[74px] rounded-lg border px-3 py-2 text-left transition-colors ${
+                className={`min-h-18.5 rounded-lg border px-3 py-2 text-left transition-colors ${
                   viewFilter === 'PAYMENT_REQUIRED'
                     ? 'border-orange-300 bg-orange-50/40'
                     : 'border-border/70 bg-background hover:border-orange-300'
@@ -353,7 +365,7 @@ export default function ProjectTicketsPage() {
               </button>
               <button
                 type="button"
-                className={`min-h-[74px] rounded-lg border px-3 py-2 text-left transition-colors ${
+                className={`min-h-18.5 rounded-lg border px-3 py-2 text-left transition-colors ${
                   viewFilter === 'CLOSED' ? 'border-emerald-300 bg-emerald-50/40' : 'border-border/70 bg-background'
                 }`}
                 onClick={() => toggleViewFilter('CLOSED')}
@@ -368,7 +380,7 @@ export default function ProjectTicketsPage() {
             <Button
               onClick={() => setCreateOpen(true)}
               variant="outline"
-              className="h-full min-h-[74px] w-full justify-start border-dashed border-primary/35 bg-primary/5 px-4 text-primary shadow-none hover:bg-primary/10 hover:text-primary"
+              className="h-full min-h-18.5 w-full justify-start border-dashed border-primary/35 bg-primary/5 px-4 text-primary shadow-none hover:bg-primary/10 hover:text-primary"
             >
               <Plus className="mr-1 h-4 w-4" />
               {t('project.ticket.create')}
@@ -503,7 +515,7 @@ export default function ProjectTicketsPage() {
               return (
                 <Card
                   key={ticket.id}
-                  className={`overflow-hidden border border-border/70 border-l-4 bg-gradient-to-b from-background to-muted/10 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md ${
+                  className={`overflow-hidden border border-border/70 border-l-4 bg-linear-to-b from-background to-muted/10 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md ${
                     STATUS_EDGE_COLORS[ticket.status] ?? 'border-l-primary/40'
                   }`}
                 >
@@ -613,7 +625,7 @@ export default function ProjectTicketsPage() {
                             size="sm"
                             variant="ghost"
                             className="ml-auto text-destructive hover:text-destructive"
-                            onClick={() => void deleteTicket(ticket.id)}
+                            onClick={() => setDeleteTarget(ticket.id)}
                           >
                             <Trash2 className="mr-1 h-4 w-4" />
                             {t('project.ticket.delete')}
@@ -668,7 +680,7 @@ export default function ProjectTicketsPage() {
                       setPage(1);
                     }}
                   >
-                    <SelectTrigger className="h-8 w-[125px]">
+                    <SelectTrigger className="h-8 w-31.25">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>

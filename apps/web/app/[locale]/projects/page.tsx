@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { ConfirmDialog } from '@/components/portal/dialogs/confirm-dialog';
 import { useAuth } from '@/components/providers/auth-provider';
 import { useTranslations } from '@/components/providers/translation-provider';
 import { Badge } from '@/components/ui/badge';
@@ -22,6 +23,7 @@ export default function ProjectsPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   const isAdmin = session?.user.role === 'ADMIN';
 
@@ -56,17 +58,14 @@ export default function ProjectsPage() {
     return { active, done };
   }, [projects]);
 
-  async function handleDeleteProject(projectId: string) {
-    const confirmed = window.confirm(t('projects.deleteConfirm'));
-    if (!confirmed) {
-      return;
-    }
-
+  async function handleConfirmDelete() {
+    if (!deleteTarget) return;
     setSubmitting(true);
     setError(null);
 
     try {
-      await request(`/projects/${projectId}`, { method: 'DELETE' });
+      await request(`/projects/${deleteTarget}`, { method: 'DELETE' });
+      setDeleteTarget(null);
       await loadData();
     } catch {
       setError(t('projects.deleteError'));
@@ -120,7 +119,7 @@ export default function ProjectsPage() {
                 type="button"
                 variant="destructive"
                 className="w-full sm:w-auto"
-                onClick={() => void handleDeleteProject(project.id)}
+                onClick={() => setDeleteTarget(project.id)}
                 disabled={submitting}
               >
                 <Trash2 className="h-4 w-4" />
@@ -134,6 +133,16 @@ export default function ProjectsPage() {
   }
 
   return (
+    <>
+    <ConfirmDialog
+      open={!!deleteTarget}
+      onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
+      title={t('projects.deleteTitle')}
+      description={t('projects.deleteConfirm')}
+      cancelLabel={t('common.cancel')}
+      confirmLabel={t('common.delete')}
+      onConfirm={() => void handleConfirmDelete()}
+    />
     <section className="space-y-8">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
@@ -178,5 +187,6 @@ export default function ProjectsPage() {
         </div>
       ) : null}
     </section>
+    </>
   );
 }

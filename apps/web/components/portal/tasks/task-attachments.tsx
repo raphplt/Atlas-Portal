@@ -1,12 +1,13 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { useProjectContext } from '@/components/portal/project-context';
 import { useTranslations } from '@/components/providers/translation-provider';
-import { Button } from '@/components/ui/button';
+import { getErrorMessage } from '@/lib/api-error';
 import { FileItem } from '@/lib/portal/types';
 import { Download, File, Paperclip, Trash2, Upload } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface TaskAttachmentsProps {
   taskId: string;
@@ -58,8 +59,8 @@ export function TaskAttachments({ taskId, isAdmin, files, onFilesChange }: TaskA
       });
 
       onFilesChange();
-    } catch {
-      // silently fail
+    } catch (e) {
+      toast.error(getErrorMessage(e, t, 'project.file.uploadError'));
     } finally {
       setUploading(false);
     }
@@ -71,8 +72,8 @@ export function TaskAttachments({ taskId, isAdmin, files, onFilesChange }: TaskA
         `/files/${fileId}/download-url`,
       );
       window.open(downloadUrl, '_blank');
-    } catch {
-      // silently fail
+    } catch (e) {
+      toast.error(getErrorMessage(e, t, 'project.file.downloadError'));
     }
   }
 
@@ -80,8 +81,8 @@ export function TaskAttachments({ taskId, isAdmin, files, onFilesChange }: TaskA
     try {
       await request(`/files/${fileId}`, { method: 'DELETE' });
       onFilesChange();
-    } catch {
-      // silently fail
+    } catch (e) {
+      toast.error(getErrorMessage(e, t, 'project.file.deleteError'));
     }
   }
 

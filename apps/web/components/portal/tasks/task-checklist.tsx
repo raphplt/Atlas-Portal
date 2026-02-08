@@ -5,8 +5,10 @@ import { useProjectContext } from '@/components/portal/project-context';
 import { useTranslations } from '@/components/providers/translation-provider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { getErrorMessage } from '@/lib/api-error';
 import { TaskChecklistItem } from '@/lib/portal/types';
 import { CheckSquare, Plus, Square, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface TaskChecklistProps {
   taskId: string;
@@ -24,12 +26,12 @@ export function TaskChecklist({ taskId, isAdmin }: TaskChecklistProps) {
     try {
       const data = await request<TaskChecklistItem[]>(`/tasks/${taskId}/checklist`);
       setItems(data);
-    } catch {
-      // silently fail
+    } catch (e) {
+      toast.error(getErrorMessage(e, t, 'project.task.checklistLoadError'));
     } finally {
       setLoading(false);
     }
-  }, [taskId, request]);
+  }, [taskId, request, t]);
 
   useEffect(() => {
     void load();
@@ -62,8 +64,8 @@ export function TaskChecklist({ taskId, isAdmin }: TaskChecklistProps) {
       });
       setItems((prev) => [...prev, created]);
       setNewTitle('');
-    } catch {
-      // silently fail
+    } catch (e) {
+      toast.error(getErrorMessage(e, t, 'project.task.checklistAddError'));
     }
   }
 

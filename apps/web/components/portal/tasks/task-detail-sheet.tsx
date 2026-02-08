@@ -11,7 +11,9 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Textarea } from '@/components/ui/textarea';
+import { getErrorMessage } from '@/lib/api-error';
 import { MilestoneItem, TaskDetail, TaskItem } from '@/lib/portal/types';
+import { toast } from 'sonner';
 import {
   Calendar,
   CheckCircle2,
@@ -84,12 +86,12 @@ export function TaskDetailSheet({
       setEditPriority(data.priority ?? '');
       setEditDueDate(data.dueDate ? data.dueDate.split('T')[0] ?? '' : '');
       setDirty(false);
-    } catch {
-      // silently fail
+    } catch (e) {
+      toast.error(getErrorMessage(e, t, 'project.task.loadError'));
     } finally {
       setLoading(false);
     }
-  }, [task, request]);
+  }, [task, request, t]);
 
   useEffect(() => {
     if (open && task) {
@@ -118,8 +120,8 @@ export function TaskDetailSheet({
       setDirty(false);
       onTaskUpdated();
       void loadDetail();
-    } catch {
-      // silently fail
+    } catch (e) {
+      toast.error(getErrorMessage(e, t, 'project.task.saveError'));
     } finally {
       setSaving(false);
     }
@@ -139,8 +141,8 @@ export function TaskDetailSheet({
       setMilestoneComment('');
       onTaskUpdated();
       void loadDetail();
-    } catch {
-      // silently fail
+    } catch (e) {
+      toast.error(getErrorMessage(e, t, 'project.task.milestoneError'));
     }
   }
 

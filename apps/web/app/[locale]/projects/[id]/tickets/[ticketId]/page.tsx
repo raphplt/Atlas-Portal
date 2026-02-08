@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ConfirmDialog } from '@/components/portal/dialogs/confirm-dialog';
 import { TicketActionDialog } from '@/components/portal/dialogs/ticket-action-dialog';
 import { useProjectContext } from '@/components/portal/project-context';
 import { useTranslations } from '@/components/providers/translation-provider';
@@ -67,6 +68,7 @@ export default function TicketDetailPage() {
   const [messages, setMessages] = useState<MessageItem[]>([]);
   const [payments, setPayments] = useState<PaymentItem[]>([]);
   const [paymentDraft, setPaymentDraft] = useState<PaymentDraft>(EMPTY_PAYMENT_DRAFT);
+  const [deleteTarget, setDeleteTarget] = useState(false);
   const [actionDialog, setActionDialog] = useState<{
     open: boolean;
     action: 'reject' | 'needs-info';
@@ -166,12 +168,11 @@ export default function TicketDetailPage() {
     }
   }
 
-  async function deleteTicket() {
+  async function handleConfirmDelete() {
     if (!ticket) return;
-    if (!window.confirm(t('project.ticket.deleteConfirm'))) return;
-
     try {
       await request(`/tickets/${ticket.id}`, { method: 'DELETE' });
+      setDeleteTarget(false);
       router.push(`/${locale}/projects/${projectId}/tickets`);
     } catch (e) {
       setError(getErrorMessage(e, t, 'project.tickets.actionError'));
@@ -196,6 +197,16 @@ export default function TicketDetailPage() {
 
   return (
     <>
+      <ConfirmDialog
+        open={deleteTarget}
+        onOpenChange={(open) => { if (!open) setDeleteTarget(false); }}
+        title={t('project.ticket.deleteTitle')}
+        description={t('project.ticket.deleteConfirm')}
+        cancelLabel={t('common.cancel')}
+        confirmLabel={t('common.delete')}
+        onConfirm={() => void handleConfirmDelete()}
+      />
+
       <TicketActionDialog
         open={actionDialog.open}
         onOpenChange={(open) => setActionDialog((prev) => ({ ...prev, open }))}
@@ -362,7 +373,7 @@ export default function TicketDetailPage() {
                         size="sm"
                         variant="ghost"
                         className="w-full justify-start text-destructive hover:text-destructive"
-                        onClick={() => void deleteTicket()}
+                        onClick={() => setDeleteTarget(true)}
                       >
                         <Trash2 className="mr-1 h-4 w-4" />
                         {t('project.ticket.delete')}

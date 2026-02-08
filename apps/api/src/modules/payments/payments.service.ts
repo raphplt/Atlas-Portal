@@ -95,41 +95,43 @@ export class PaymentsService {
 
     await this.projectsService.getById(user, dto.projectId);
 
-    if (dto.ticketId) {
-      const ticket = await this.ticketsRepository.findOne({
-        where: { id: dto.ticketId },
-      });
-      if (
-        !ticket ||
-        ticket.workspaceId !== user.workspaceId ||
-        ticket.projectId !== dto.projectId
-      ) {
-        throw new BadRequestException({
-          code: 'PAYMENT_NOT_FOUND',
-          message: 'Ticket not found for this project',
+    const saved = await this.paymentRepository.manager.transaction(async (manager) => {
+      if (dto.ticketId) {
+        const ticket = await manager.findOne(TicketEntity, {
+          where: { id: dto.ticketId },
         });
+        if (
+          !ticket ||
+          ticket.workspaceId !== user.workspaceId ||
+          ticket.projectId !== dto.projectId
+        ) {
+          throw new BadRequestException({
+            code: 'PAYMENT_NOT_FOUND',
+            message: 'Ticket not found for this project',
+          });
+        }
+
+        ticket.status = TicketStatus.PAYMENT_REQUIRED;
+        ticket.requiresPayment = true;
+        ticket.priceCents = dto.amountCents;
+        await manager.save(ticket);
       }
 
-      ticket.status = TicketStatus.PAYMENT_REQUIRED;
-      ticket.requiresPayment = true;
-      ticket.priceCents = dto.amountCents;
-      await this.ticketsRepository.save(ticket);
-    }
+      const payment = manager.create(PaymentEntity, {
+        workspaceId: user.workspaceId,
+        projectId: dto.projectId,
+        ticketId: dto.ticketId,
+        createdById: user.id,
+        title: dto.title,
+        description: dto.description,
+        amountCents: dto.amountCents,
+        currency: dto.currency?.toUpperCase() ?? 'EUR',
+        dueAt: dto.dueAt,
+        status: PaymentStatus.PENDING,
+      });
 
-    const payment = this.paymentRepository.create({
-      workspaceId: user.workspaceId,
-      projectId: dto.projectId,
-      ticketId: dto.ticketId,
-      createdById: user.id,
-      title: dto.title,
-      description: dto.description,
-      amountCents: dto.amountCents,
-      currency: dto.currency?.toUpperCase() ?? 'EUR',
-      dueAt: dto.dueAt,
-      status: PaymentStatus.PENDING,
+      return manager.save(payment);
     });
-
-    const saved = await this.paymentRepository.save(payment);
 
     await this.auditService.create({
       workspaceId: user.workspaceId,
@@ -186,21 +188,25 @@ export class PaymentsService {
       });
     }
 
-    payment.status = PaymentStatus.CANCELED;
-    const saved = await this.paymentRepository.save(payment);
+    const saved = await this.paymentRepository.manager.transaction(async (manager) => {
+      payment.status = PaymentStatus.CANCELED;
+      const result = await manager.save(payment);
 
-    // If linked to a ticket in PAYMENT_REQUIRED, revert ticket to ACCEPTED
-    if (payment.ticketId) {
-      const ticket = await this.ticketsRepository.findOne({
-        where: { id: payment.ticketId },
-      });
-      if (ticket && ticket.status === TicketStatus.PAYMENT_REQUIRED) {
-        ticket.status = TicketStatus.ACCEPTED;
-        ticket.requiresPayment = false;
-        ticket.priceCents = null as unknown as number;
-        await this.ticketsRepository.save(ticket);
+      // If linked to a ticket in PAYMENT_REQUIRED, revert ticket to ACCEPTED
+      if (payment.ticketId) {
+        const ticket = await manager.findOne(TicketEntity, {
+          where: { id: payment.ticketId },
+        });
+        if (ticket && ticket.status === TicketStatus.PAYMENT_REQUIRED) {
+          ticket.status = TicketStatus.ACCEPTED;
+          ticket.requiresPayment = false;
+          ticket.priceCents = null as unknown as number;
+          await manager.save(ticket);
+        }
       }
-    }
+
+      return result;
+    });
 
     await this.auditService.create({
       workspaceId: payment.workspaceId,
@@ -379,13 +385,15 @@ export class PaymentsService {
       return;
     }
 
-    payment.status = PaymentStatus.PAID;
-    payment.paidAt = new Date();
-    payment.stripePaymentIntentId =
-      typeof session.payment_intent === 'string'
-        ? session.payment_intent
-        : null;
-    await this.paymentRepository.save(payment);
+    await this.paymentRepository.manager.transaction(async (manager) => {
+      payment.status = PaymentStatus.PAID;
+      payment.paidAt = new Date();
+      payment.stripePaymentIntentId =
+        typeof session.payment_intent === 'string'
+          ? session.payment_intent
+          : null;
+      await manager.save(payment);
+    });
 
     await this.auditService.create({
       workspaceId: payment.workspaceId,

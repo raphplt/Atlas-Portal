@@ -14,6 +14,7 @@ import {
   TicketEntity,
   UserEntity,
 } from '../../database/entities';
+import { escapeIlike } from '../../common/utils/search.util';
 import { AuditService } from '../audit/audit.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ProjectsService } from '../projects/projects.service';
@@ -206,7 +207,7 @@ export class TicketsService {
       qb.andWhere(
         '(ticket.title ILIKE :search OR ticket.description ILIKE :search OR ticket.status_reason ILIKE :search)',
         {
-          search: `%${query.search}%`,
+          search: `%${escapeIlike(query.search)}%`,
         },
       );
     }
@@ -525,26 +526,30 @@ export class TicketsService {
       });
     }
 
-    ticket.requiresPayment = true;
-    ticket.priceCents = dto.priceCents;
-    ticket.paymentDescription = dto.description ?? null;
-    ticket.status = TicketStatus.PAYMENT_REQUIRED;
+    const { saved, payment } = await this.ticketRepository.manager.transaction(async (manager) => {
+      ticket.requiresPayment = true;
+      ticket.priceCents = dto.priceCents;
+      ticket.paymentDescription = dto.description ?? null;
+      ticket.status = TicketStatus.PAYMENT_REQUIRED;
 
-    const saved = await this.ticketRepository.save(ticket);
+      const savedTicket = await manager.save(ticket);
 
-    // Create the linked PaymentEntity so the client can actually pay
-    const payment = this.paymentRepository.create({
-      workspaceId: user.workspaceId,
-      projectId: ticket.projectId,
-      ticketId: ticket.id,
-      createdById: user.id,
-      title: `Ticket: ${ticket.title}`,
-      description: dto.description ?? null,
-      amountCents: dto.priceCents,
-      currency: dto.currency?.toUpperCase() ?? 'EUR',
-      status: PaymentStatus.PENDING,
+      // Create the linked PaymentEntity so the client can actually pay
+      const newPayment = manager.create(PaymentEntity, {
+        workspaceId: user.workspaceId,
+        projectId: ticket.projectId,
+        ticketId: ticket.id,
+        createdById: user.id,
+        title: `Ticket: ${ticket.title}`,
+        description: dto.description ?? null,
+        amountCents: dto.priceCents,
+        currency: dto.currency?.toUpperCase() ?? 'EUR',
+        status: PaymentStatus.PENDING,
+      });
+      const savedPayment = await manager.save(newPayment);
+
+      return { saved: savedTicket, payment: savedPayment };
     });
-    await this.paymentRepository.save(payment);
 
     await this.auditService.create({
       workspaceId: user.workspaceId,
