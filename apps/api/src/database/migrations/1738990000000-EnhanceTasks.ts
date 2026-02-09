@@ -81,13 +81,13 @@ export class EnhanceTasks1738990000000 implements MigrationInterface {
         uuid_generate_v4(),
         mv."workspace_id",
         mv."project_id",
-        'MILESTONE',
+        'MILESTONE'::"task_source_enum",
         CASE mv."type"
           WHEN 'DESIGN' THEN 'Design'
           WHEN 'CONTENT' THEN 'Content'
           WHEN 'DELIVERY' THEN 'Delivery'
         END,
-        CASE WHEN mv."validated" THEN 'DONE' ELSE 'BACKLOG' END,
+        (CASE WHEN mv."validated" THEN 'DONE' ELSE 'BACKLOG' END)::"task_status_enum",
         mv."type",
         999,
         mv."created_at",
